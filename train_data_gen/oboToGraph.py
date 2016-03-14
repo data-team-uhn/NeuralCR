@@ -5,15 +5,6 @@ import cPickle as pickle
 
 total=0
 marked={}
-def dfs(graph, h, v):
-	global total
-	marked[v]=True
-	if len( graph[v]['names'] ) > 1:
-		total+=1
-	for u in graph[v]['kids']:
-		if u not in marked:
-			h[u]=h[v]+1
-			dfs(graph, h, u)
 
 def bfs(g, start, lower, upper):
 	que=[start]
@@ -48,7 +39,6 @@ def randomize_triplet(t):
 
 def embed_phrase(phrase, wordList, padded_size):
 	words=phrase.lower().strip().split()	
-	#for w in words:
 	em_list = [wordList[w] for w in words]
 	em_list += [np.zeros(wordList["the"].shape)]*(padded_size-len(words))
 	embeding = np.concatenate(em_list)
@@ -60,17 +50,8 @@ def check_phrase(phrase, wordList, word_limit):
 		return True
 	return False
 
-
-def main():
-	oboFile=open("hp.obo")
-	vectorFile=open("test_vectors.txt")
-
-	wordVector={}
-	for line in vectorFile:
-		tokens = line.strip().split(" ")
-		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
-	
-	graph={}
+def read_oboFile(oboFile):
+	concepts={}
 	neighbour={}
 	while True:
 		line=oboFile.readline()
@@ -79,15 +60,15 @@ def main():
 		tokens=line.strip().split(" ")
 		if tokens[0]=="id:":
 			hp_id=tokens[1]
-			graph[hp_id] = {}
+			concepts[hp_id] = {}
 			neighbour[hp_id] = []
-			graph[hp_id]['kids'] = []
+			concepts[hp_id]['kids'] = []
 
 		if tokens[0] == "name:":
-			graph[hp_id]['names'] = [' '.join(tokens[1:])]
+			concepts[hp_id]['names'] = [' '.join(tokens[1:])]
 		if tokens[0] == "synonym:":
 			last_index = (i for i,v in enumerate(tokens) if v.endswith("\"")).next()
-			graph[hp_id]['names'].append( ' '.join(tokens[1:last_index+ 1]).strip("\"") )
+			concepts[hp_id]['names'].append( ' '.join(tokens[1:last_index+ 1]).strip("\"") )
 
 	oboFile.seek(0)
 	while True:
@@ -99,9 +80,22 @@ def main():
 			hp_id=tokens[1]
 
 		if tokens[0]=="is_a:":
-			graph[tokens[1]]['kids'].append(hp_id)
+			concepts[tokens[1]]['kids'].append(hp_id)
 			neighbour[tokens[1]].append(hp_id)
 			neighbour[hp_id].append(tokens[1])
+	return concepts, neighbour
+
+
+def main():
+	oboFile=open("hp.obo")
+	vectorFile=open("test_vectors.txt")
+
+	concepts, neighbour = read_oboFile(oboFile)
+	wordVector={}
+	for line in vectorFile:
+		tokens = line.strip().split(" ")
+		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
+	
 
 	nearby_close={}
 	nearby_mid={}
@@ -116,32 +110,32 @@ def main():
 	count_close_far=0
 	count_close_mid=0
 	count_syn_close=0
-	for v in graph.keys():
+	for v in concepts.keys():
 		if len(neighbour[v]) == 0:
 			continue
 		for t in range(10):
 			relevant_concept = random.choice(nearby_close[v])
 			irrelevant_concept = random.choice(nearby_far[v])
-			#irreleventRelevent_triplets.append([random.choice(graph[v]['names']), random.choice(graph[relevant_concept]['names']), random.choice(graph[irrelevant_concept]['names'])])
-			irreleventRelevent_triplets.append([ random.choice(graph[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
+			#irreleventRelevent_triplets.append([random.choice(concepts[v]['names']), random.choice(concepts[relevant_concept]['names']), random.choice(concepts[irrelevant_concept]['names'])])
+			irreleventRelevent_triplets.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
 			count_close_far+=1
 		for t in range(10):
 			relevant_concept = random.choice(nearby_close[v])
 			irrelevant_concept = random.choice(nearby_mid[v])
-			irreleventRelevent_triplets.append([ random.choice(graph[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
+			irreleventRelevent_triplets.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
 			count_close_mid+=1
 
-		for x_name1 in graph[v]['names']:
-			for x_name2 in graph[v]['names']:
+		for x_name1 in concepts[v]['names']:
+			for x_name2 in concepts[v]['names']:
 				if x_name1 == x_name2:
 					continue
 				for t in range(3):
 					irrelevant_concept = random.choice(nearby_close[v])
-					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(graph[irrelevant_concept]['names'])])
+					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
 					count_syn_close+=1
 				for t in range(1):
 					irrelevant_concept = random.choice(nearby_mid[v])
-					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(graph[irrelevant_concept]['names'])])
+					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
 					count_syn_close+=1
 
 	shuffle(irreleventRelevent_triplets)
