@@ -36,7 +36,6 @@ def randomize_triplet(t):
 		new_t[3] = np.array([0.0, 1.0])
 	return new_t
 
-
 def embed_phrase(phrase, wordList, padded_size):
 	words=phrase.lower().strip().split()	
 	em_list = [wordList[w] for w in words]
@@ -83,47 +82,43 @@ def read_oboFile(oboFile):
 			concepts[tokens[1]]['kids'].append(hp_id)
 			neighbour[tokens[1]].append(hp_id)
 			neighbour[hp_id].append(tokens[1])
+
 	return concepts, neighbour
 
-
-def main():
-	oboFile=open("hp.obo")
-	vectorFile=open("test_vectors.txt")
-
-	concepts, neighbour = read_oboFile(oboFile)
-	wordVector={}
-	for line in vectorFile:
-		tokens = line.strip().split(" ")
-		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
-	
+def generate_triplets(concept_ids, concepts, neighbour):
 
 	nearby_close={}
 	nearby_mid={}
 	nearby_far={}
-	for v in neighbour:
-		nearby_close[v]=bfs(neighbour, v, 1, 1)
-		nearby_mid[v]=bfs(neighbour, v, 2, 2)
-		nearby_far[v]=bfs(neighbour, v, 3, 5)
 
+	for v in neighbour:
+                tmp = bfs(neighbour, v, 1, 1)
+#                print "1,1"
+		nearby_close[v] = [u for u in tmp if u in concept_ids]
+                tmp = bfs(neighbour, v, 2, 2)
+#                print "2,2"
+		nearby_mid[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 2, 2)
+                tmp = bfs(neighbour, v, 2, 2)
+#                print "3,5"
+		nearby_far[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 3, 5)
+		
 	irreleventRelevent_triplets = []
 
-	count_close_far=0
-	count_close_mid=0
 	count_syn_close=0
-	for v in concepts.keys():
+	print 'starting to gen'
+	triplets_close_far=[]
+	triplets_close_mid=[]
+	for v in concept_ids:
 		if len(neighbour[v]) == 0:
 			continue
 		for t in range(10):
 			relevant_concept = random.choice(nearby_close[v])
 			irrelevant_concept = random.choice(nearby_far[v])
-			#irreleventRelevent_triplets.append([random.choice(concepts[v]['names']), random.choice(concepts[relevant_concept]['names']), random.choice(concepts[irrelevant_concept]['names'])])
-			irreleventRelevent_triplets.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
-			count_close_far+=1
+			triplets_close_far.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
 		for t in range(10):
 			relevant_concept = random.choice(nearby_close[v])
 			irrelevant_concept = random.choice(nearby_mid[v])
-			irreleventRelevent_triplets.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
-			count_close_mid+=1
+			triplets_close_mid.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
 
 		for x_name1 in concepts[v]['names']:
 			for x_name2 in concepts[v]['names']:
@@ -139,15 +134,32 @@ def main():
 					count_syn_close+=1
 
 	shuffle(irreleventRelevent_triplets)
-	print len(irreleventRelevent_triplets)
-	word_limit=10
+	return irreleventRelevent_triplets
 
+def main():
+	oboFile=open("hp.obo")
+	vectorFile=open("test_vectors.txt")
+
+        print "start"
+	concepts, neighbour = read_oboFile(oboFile)
+	wordVector={}
+	for line in vectorFile:
+		tokens = line.strip().split(" ")
+		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
+	
+	concept_ids = [v for v in concepts.keys()]
+	shuffle(concept_ids)
+
+	irreleventRelevent_triplets = generate_triplets(concept_ids, concepts, neighbour)
+	
+	word_limit=10
 	filtered_triplets = [triplet for triplet in irreleventRelevent_triplets if all([check_phrase(phrase, wordVector, word_limit) for phrase in triplet])]
 	pickle.dump(filtered_triplets, open("raw_triplets","wb"))
 	print len(filtered_triplets)
 	print (filtered_triplets[0])
 	vectorized_triplets = [ [embed_phrase(phrase, wordVector, word_limit) for phrase in triplet] for triplet in filtered_triplets ]
 	randomized_triplets = map( randomize_triplet, vectorized_triplets )
+
 	pickle.dump(randomized_triplets, open("triplets","wb"))
 	#pickle.dump(randomized_triplets[:10000], open("triplets","wb"))
 	
