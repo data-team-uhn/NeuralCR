@@ -91,14 +91,15 @@ def generate_triplets(concept_ids, concepts, neighbour):
 	nearby_mid={}
 	nearby_far={}
 
+	print len(neighbour)
 	for v in neighbour:
-                tmp = bfs(neighbour, v, 1, 1)
+		tmp = bfs(neighbour, v, 1, 1)
 #                print "1,1"
 		nearby_close[v] = [u for u in tmp if u in concept_ids]
-                tmp = bfs(neighbour, v, 2, 2)
+		tmp = bfs(neighbour, v, 2, 2)
 #                print "2,2"
 		nearby_mid[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 2, 2)
-                tmp = bfs(neighbour, v, 2, 2)
+		tmp = bfs(neighbour, v, 2, 2)
 #                print "3,5"
 		nearby_far[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 3, 5)
 		
@@ -140,7 +141,7 @@ def main():
 	oboFile=open("hp.obo")
 	vectorFile=open("test_vectors.txt")
 
-        print "start"
+	print "start"
 	concepts, neighbour = read_oboFile(oboFile)
 	wordVector={}
 	for line in vectorFile:
