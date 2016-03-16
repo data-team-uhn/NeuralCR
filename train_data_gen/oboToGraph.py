@@ -2,6 +2,7 @@ from random import shuffle
 import random
 import numpy as np
 import cPickle as pickle
+#from sets import Set
 
 total=0
 marked={}
@@ -93,15 +94,9 @@ def generate_triplets(concept_ids, concepts, neighbour):
 
 	print len(neighbour)
 	for v in neighbour:
-		tmp = bfs(neighbour, v, 1, 1)
-#                print "1,1"
-		nearby_close[v] = [u for u in tmp if u in concept_ids]
-		tmp = bfs(neighbour, v, 2, 2)
-#                print "2,2"
-		nearby_mid[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 2, 2)
-		tmp = bfs(neighbour, v, 2, 2)
-#                print "3,5"
-		nearby_far[v] = [u for u in tmp if u in concept_ids] #bfs(neighbour, v, 3, 5)
+		nearby_close[v] = [u for u in bfs(neighbour, v, 1, 1) if u in concept_ids]
+		nearby_mid[v] = [u for u in bfs(neighbour, v, 2, 2) if u in concept_ids] #bfs(neighbour, v, 2, 2)
+		nearby_far[v] = [u for u in bfs(neighbour, v, 3, 5) if u in concept_ids] #bfs(neighbour, v, 3, 5)
 		
 	irreleventRelevent_triplets = []
 
@@ -148,8 +143,8 @@ def main():
 		tokens = line.strip().split(" ")
 		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
 	
-	concept_ids = [v for v in concepts.keys()]
-	shuffle(concept_ids)
+	concept_ids = set(concepts.keys())
+	#shuffle(concept_ids)
 
 	irreleventRelevent_triplets = generate_triplets(concept_ids, concepts, neighbour)
 	
