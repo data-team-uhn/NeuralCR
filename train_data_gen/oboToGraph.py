@@ -2,7 +2,7 @@ from random import shuffle
 import random
 import numpy as np
 import cPickle as pickle
-#from sets import Set
+from itertools import product
 
 total=0
 marked={}
@@ -37,15 +37,18 @@ def randomize_triplet(t):
 		new_t[3] = np.array([0.0, 1.0])
 	return new_t
 
+def tokenize(phrase):
+	return phrase.lower().replace(',',' ').replace('-',' ').replace(';', ' ').strip().split()	
+
 def embed_phrase(phrase, wordList, padded_size):
-	words=phrase.lower().strip().split()	
+	words = tokenize(phrase)
 	em_list = [wordList[w] for w in words]
 	em_list += [np.zeros(wordList["the"].shape)]*(padded_size-len(words))
 	embeding = np.concatenate(em_list)
 	return embeding
 
 def check_phrase(phrase, wordList, word_limit):	
-	words=phrase.lower().strip().split()	
+	words = tokenize(phrase)
 	if len(words) <= word_limit and all([(w in wordList) for w in words]):
 		return True
 	return False
@@ -86,79 +89,99 @@ def read_oboFile(oboFile):
 
 	return concepts, neighbour
 
-def generate_triplets(concept_ids, concepts, neighbour):
+def generate_triplets_graph_structure(concept_ids, concepts, neighbour, relevant_interval, irrelevant_interval):
+	relevant_concepts = {}
+	irrelevant_concepts = {}
 
-	nearby_close={}
-	nearby_mid={}
-	nearby_far={}
+	for v in concept_ids:
+		relevant_concepts[v] = [u for u in bfs(neighbour, v, relevant_interval[0], relevant_interval[1])]# if u in concept_ids]
+		irrelevant_concepts[v] = [u for u in bfs(neighbour, v, irrelevant_interval[0], irrelevant_interval[1])]# if u in concept_ids] #bfs(neighbour, v, 2, 2)
+		shuffle(relevant_concepts[v])
+		shuffle(irrelevant_concepts[v])
 
-	print len(neighbour)
-	for v in neighbour:
-		nearby_close[v] = [u for u in bfs(neighbour, v, 1, 1) if u in concept_ids]
-		nearby_mid[v] = [u for u in bfs(neighbour, v, 2, 2) if u in concept_ids] #bfs(neighbour, v, 2, 2)
-		nearby_far[v] = [u for u in bfs(neighbour, v, 3, 5) if u in concept_ids] #bfs(neighbour, v, 3, 5)
-		
-	irreleventRelevent_triplets = []
+	triplets = []
 
-	count_syn_close=0
-	print 'starting to gen'
-	triplets_close_far=[]
-	triplets_close_mid=[]
 	for v in concept_ids:
 		if len(neighbour[v]) == 0:
 			continue
-		for t in range(10):
-			relevant_concept = random.choice(nearby_close[v])
-			irrelevant_concept = random.choice(nearby_far[v])
-			triplets_close_far.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
-		for t in range(10):
-			relevant_concept = random.choice(nearby_close[v])
-			irrelevant_concept = random.choice(nearby_mid[v])
-			triplets_close_mid.append([ random.choice(concepts[concept]['names']) for concept in [v, relevant_concept, irrelevant_concept] ])
+		loc_triplets = []
+		pairs = [pair for pair in product(relevant_concepts[v], irrelevant_concepts[v])]
+		for rc, ic in random.sample(pairs, min(len(pairs),len(relevant_concepts[v]))):
+			v_name, rc_name, ic_name = [ random.choice(concepts[concept]['names']) for concept in [v, rc, ic] ] #in product(concepts[v]['names'], concepts[rc]['names'], concepts[ic]['names']):
+			loc_triplets.append([v_name, rc_name, ic_name])
+		triplets += loc_triplets
+	return triplets
 
+def generate_triplets_synonyms(concept_ids, concepts, neighbour, irrelevant_interval):
+
+	irrelevant_concepts = {}
+	for v in concept_ids:
+		irrelevant_concepts[v] = [u for u in bfs(neighbour, v, irrelevant_interval[0], irrelevant_interval[1])]# if u in concept_ids] #bfs(neighbour, v, 2, 2)
+		shuffle(irrelevant_concepts[v])
+
+	triplets = []
+	ct=0
+	for v in concept_ids:
 		for x_name1 in concepts[v]['names']:
 			for x_name2 in concepts[v]['names']:
 				if x_name1 == x_name2:
 					continue
-				for t in range(3):
-					irrelevant_concept = random.choice(nearby_close[v])
-					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
-					count_syn_close+=1
-				for t in range(1):
-					irrelevant_concept = random.choice(nearby_mid[v])
-					irreleventRelevent_triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
-					count_syn_close+=1
+				for t in range(min(3,len(irrelevant_concepts[v]))):
+					irrelevant_concept = irrelevant_concepts[v][t]
+					triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
+	return triplets
 
-	shuffle(irreleventRelevent_triplets)
-	return irreleventRelevent_triplets
+def postprocess_triplets(triplets, wordVector, word_limit):
+	filtered_triplets = [triplet for triplet in triplets if all([check_phrase(phrase, wordVector, word_limit) for phrase in triplet])]
+	vectorized_triplets = [ [embed_phrase(phrase, wordVector, word_limit) for phrase in triplet] for triplet in filtered_triplets ]
+	randomized_triplets = map( randomize_triplet, vectorized_triplets )
+	return np.stack ([np.stack([t[0] for t in randomized_triplets]), np.stack([t[1] for t in randomized_triplets]), np.stack([t[2] for t in randomized_triplets])], axis=2), np.stack([t[3] for t in randomized_triplets]), filtered_triplets
+
+def store_data(data, directory):
+	types = [ 'triplets' , 'labels', 'raw' ]
+	for x in data:
+		for i,t in enumerate(types):
+			address = directory + "/" + x + "_" + t + ".npy"
+			if t != 'raw':
+				print address, data[x][i].shape
+				np.save(address, data[x][i])
+
+
 
 def main():
 	oboFile=open("hp.obo")
 	vectorFile=open("test_vectors.txt")
 
-	print "start"
 	concepts, neighbour = read_oboFile(oboFile)
 	wordVector={}
 	for line in vectorFile:
 		tokens = line.strip().split(" ")
 		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
-	
-	concept_ids = set(concepts.keys())
-	#shuffle(concept_ids)
+		
+	concept_ids = [v for v in concepts.keys()]
+	shuffle(concept_ids)
+	train_set = set(concept_ids)
+	train_set = set(concept_ids[:int(len(concept_ids)*0.8)])
+	validation_set = set(concept_ids[int(len(concept_ids)*0.8):int(len(concept_ids)*0.9)])
+	test_set = set(concept_ids[int(len(concept_ids)*0.9):])
 
-	irreleventRelevent_triplets = generate_triplets(concept_ids, concepts, neighbour)
-	
+#	train_triplets = generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])
+
 	word_limit=10
-	filtered_triplets = [triplet for triplet in irreleventRelevent_triplets if all([check_phrase(phrase, wordVector, word_limit) for phrase in triplet])]
-	pickle.dump(filtered_triplets, open("raw_triplets","wb"))
-	print len(filtered_triplets)
-	print (filtered_triplets[0])
-	vectorized_triplets = [ [embed_phrase(phrase, wordVector, word_limit) for phrase in triplet] for triplet in filtered_triplets ]
-	randomized_triplets = map( randomize_triplet, vectorized_triplets )
+	data={
+			'train_triplets' : postprocess_triplets( generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
 
-	pickle.dump(randomized_triplets, open("triplets","wb"))
-	#pickle.dump(randomized_triplets[:10000], open("triplets","wb"))
-	
+			'validation_graph_3_5' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [3,5]) , wordVector, word_limit ),
+			'validation_graph_2_2' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [2,2]) , wordVector, word_limit ),
+			'validation_synonym' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+
+			'test_graph_3_5' : postprocess_triplets( generate_triplets_graph_structure(test_set, concepts, neighbour, [1,1], [3,5]) , wordVector, word_limit ),
+			'test_graph_2_2' : postprocess_triplets( generate_triplets_graph_structure(test_set, concepts, neighbour, [1,1], [2,2]) , wordVector, word_limit ),
+			'test_synonym' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+			}
+
+	store_data(data, "./data_files/")
+
 if __name__ == "__main__":
 	main()
 
