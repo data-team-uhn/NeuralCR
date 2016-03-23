@@ -33,8 +33,9 @@ def normalize(x):
 	return x / tf.sqrt( tf.reduce_sum( tf.square(x), 1, keep_dims=True ))
 
 def concept_vector_model(x, keep_prob):
-	layer_1gram = conv_pool_layer(x, "layer_1gram_", [1, 1, 100, 512])
-	layer2_1gram = conv_pool_layer(layer_1gram, "layer2_1gram_", [1, 1, 512, 1024])
+	layer1_1gram = conv_pool_layer(x, "layer1_1gram_", [1, 1, 100, 1024])
+	layer2_1gram = conv_pool_layer(layer1_1gram, "layer2_1gram_", [1, 1, 1024, 2048])
+#	layer3_1gram = conv_pool_layer(layer2_1gram, "layer3_1gram_", [1, 1, 2048, 4096])
 	pooled_layer = tf.nn.max_pool(layer2_1gram, [1, 10, 1, 1], [1, 10, 1, 1], "SAME")
 	'''
 	layer_2gram = conv_pool_layer(x, "layer_2gram_", [2, 1, 100, 50])
@@ -48,8 +49,9 @@ def concept_vector_model(x, keep_prob):
 	#full_layer = tf.concat(3, [layer_1gram, layer_2gram, layer_3gram, layer_4gram, layer_5gram, layer_6gram])
 	full_layer_dropout = tf.nn.dropout(pooled_layer,keep_prob)
 
-	dense1 =  tf.nn.relu( fully_connected_layer(tf.reshape(full_layer_dropout, [-1, 1024]), "dense1_", 1024, 2048) )
-	dense2 =  tf.nn.tanh( fully_connected_layer(dense1, "dense2_", 2048, 300))
+	dense1 =  tf.nn.relu( fully_connected_layer(tf.reshape(full_layer_dropout, [-1, 2048]), "dense1_", 2048, 4096) )
+	dense2 =  tf.nn.relu( fully_connected_layer(dense1, "dense2_", 4096, 4096) )
+	dense3 = tf.nn.tanh( fully_connected_layer(dense2, "dense3_", 4096, 500))
 
-	return normalize(dense2)
+	return normalize(dense3)
 

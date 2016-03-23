@@ -3,27 +3,21 @@ import numpy as np
 class DataReader:
 	
 	def __init__(self, data):
-		total=len(data)
-		self.training = data[:int(total*0.8)]
-		self.validation = data[int(total*0.8):int(total*0.9)]
-		self.test = data[int(total*0.9):]
+		self.data = data
 		self.counter = 0
 
-	def read_batch(self, batch_size):
-		if self.counter >= len(self.training):
-			return None
-		new_batch = [np.stack( [triplet[i] for triplet in self.training[ self.counter : min(len(self.training), self.counter+batch_size)]]) for i in range(4)]
+	def read_batch(self, triplets_name, labels_name, batch_size):
+		triplets = self.data[triplets_name]
+		labels = self.data[labels_name]
+		if self.counter >= triplets.shape[0]:
+			return None, None
+		new_batch = triplets[self.counter:self.counter+batch_size, :, :], labels[self.counter:self.counter+batch_size, :]
 		self.counter+=batch_size
 		return new_batch
 
 	def reset_reader(self):
 		self.counter = 0
 
-	def get_validation(self):
-		new_batch = [np.stack( [triplet[i] for triplet in self.validation]) for i in range(4)]
-		return new_batch
-
-	def get_test(self):
-		new_batch = [np.stack( [triplet[i] for triplet in self.test]) for i in range(4)]
-		return new_batch
+	def read_complete_set(self, triplets_name, labels_name,):
+		return self.data[triplets_name], self.data[labels_name]
 

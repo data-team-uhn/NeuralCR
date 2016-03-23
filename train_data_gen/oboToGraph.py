@@ -132,6 +132,7 @@ def generate_triplets_synonyms(concept_ids, concepts, neighbour, irrelevant_inte
 	return triplets
 
 def postprocess_triplets(triplets, wordVector, word_limit):
+	shuffle(triplets)
 	filtered_triplets = [triplet for triplet in triplets if all([check_phrase(phrase, wordVector, word_limit) for phrase in triplet])]
 	vectorized_triplets = [ [embed_phrase(phrase, wordVector, word_limit) for phrase in triplet] for triplet in filtered_triplets ]
 	randomized_triplets = map( randomize_triplet, vectorized_triplets )
@@ -169,15 +170,21 @@ def main():
 
 	word_limit=10
 	data={
-			'train_triplets' : postprocess_triplets( generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+			'training' : postprocess_triplets( generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])  + generate_triplets_synonyms(train_set, concepts, neighbour, [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [1,1]), wordVector, word_limit ),
 
 			'validation_graph_3_5' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [3,5]) , wordVector, word_limit ),
 			'validation_graph_2_2' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [2,2]) , wordVector, word_limit ),
-			'validation_synonym' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+
+			'validation_synonym_3_5' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+			'validation_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
+			'validation_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
 
 			'test_graph_3_5' : postprocess_triplets( generate_triplets_graph_structure(test_set, concepts, neighbour, [1,1], [3,5]) , wordVector, word_limit ),
 			'test_graph_2_2' : postprocess_triplets( generate_triplets_graph_structure(test_set, concepts, neighbour, [1,1], [2,2]) , wordVector, word_limit ),
-			'test_synonym' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+
+			'test_synonym_3_5' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+			'test_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
+			'test_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
 			}
 
 	store_data(data, "./data_files/")
