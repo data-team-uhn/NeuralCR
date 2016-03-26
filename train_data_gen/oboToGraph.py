@@ -158,6 +158,11 @@ def main():
 	for line in vectorFile:
 		tokens = line.strip().split(" ")
 		wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
+	'''
+	'''
+	pickle.dump(concepts, open('hpo.pickle','wb'))
+	pickle.dump(wordVector, open('word-vectors.pickle','wb'))
+	exit()
 		
 	concept_ids = [v for v in concepts.keys()]
 	shuffle(concept_ids)
