@@ -28,15 +28,16 @@ class NeuralAnnotator:
 
 	def get_hp_id(self, querry):
 		if not check_phrase(querry, self.wordList, self.modelConfig.max_num_of_words):
-			return None
+			return None, None
 		querry_embedding = np.reshape ( embed_phrase(querry, self.wordList, self.modelConfig.max_num_of_words), (1, self.modelConfig.max_num_of_words * self.modelConfig.word_size))
 		querry_rep = self.sess.run(self.m.rep, feed_dict={self.m.input_vectors : querry_embedding})
 		cosine_sim = np.matmul(querry_rep, np.transpose(self.hpo_reps))
-		querry_hpo_embedding_index = np.argmax(cosine_sim, axis=1)
+		querry_hpo_embedding_index = np.argmax(cosine_sim, axis=1)[0]
+		score = np.max(cosine_sim, axis=1)
 		querry_hpo = self.embedded_concepts_indecies[querry_hpo_embedding_index]
 		querry_name = self.concepts[querry_hpo]['names']
 		
-		return querry_hpo
+		return querry_hpo, score
 		
 	def __init__(self):
 		self.modelConfig = ncr_cnn_model.bigConfig()
@@ -70,11 +71,12 @@ def main():
 	ant = NeuralAnnotator()
 	while True:
 		line = sys.stdin.readline().strip()
-		hp_id = ant.get_hp_id(line)
+		hp_id, score = ant.get_hp_id(line)
 		if hp_id == None:
 			print "bad input"
+			continue
 		else:
-			print hp_id, ant.concepts[hp_id]['names']
+			print hp_id, ant.concepts[hp_id]['names'], score
 		
 		if line == '':
 			break
