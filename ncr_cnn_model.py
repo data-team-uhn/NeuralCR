@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+
 class bigConfig:
     max_num_of_words = 10
     word_size = 100
@@ -10,6 +11,7 @@ class bigConfig:
     dense_layer1_size=1024
     dense_layer2_size=300
     # dense_layer3_size=500
+
 
 class smallConfig:
     max_num_of_words = 10
