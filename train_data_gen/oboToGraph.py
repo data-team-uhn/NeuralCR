@@ -180,6 +180,7 @@ def main():
         'validation_graph_3_5' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [3,5]) , wordVector, word_limit ),
         'validation_graph_2_2' : postprocess_triplets( generate_triplets_graph_structure(validation_set, concepts, neighbour, [1,1], [2,2]) , wordVector, word_limit ),
 
+
         'validation_synonym_3_5' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
         'validation_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
         'validation_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
