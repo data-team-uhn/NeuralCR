@@ -9,12 +9,14 @@ import sys
 
 def read_files():
     directory="./train_data_gen/data_files/"
-    files = ['validation_synonym_3_5_triplets','validation_synonym_3_5_labels', 'validation_synonym_2_2_triplets',
+    files = ['validation_synonym_3_5_triplets', 'validation_synonym_3_5_labels', 'validation_synonym_2_2_triplets',
              'validation_synonym_2_2_labels', 'validation_synonym_1_1_triplets', 'validation_synonym_1_1_labels',
-             'validation_graph_3_5_triplets', 'validation_graph_3_5_labels', 'test_graph_2_2_triplets', 'test_graph_2_2_labels',
-             'test_synonym_3_5_triplets', 'test_synonym_3_5_labels', 'test_synonym_2_2_triplets', 'test_synonym_2_2_labels',
-             'test_synonym_1_1_triplets', 'test_synonym_1_1_labels', 'training_triplets', 'training_labels', 'test_graph_3_5_triplets',
-             'test_graph_3_5_labels', 'validation_graph_2_2_triplets', 'validation_graph_2_2_labels']
+             'validation_graph_3_5_triplets', 'validation_graph_3_5_labels', 'test_graph_2_2_triplets',
+             'test_graph_2_2_labels', 'test_synonym_3_5_triplets', 'test_synonym_3_5_labels',
+             'test_synonym_2_2_triplets', 'test_synonym_2_2_labels', 'test_synonym_1_1_triplets',
+             'test_synonym_1_1_labels', 'training_triplets', 'training_labels',
+             'test_graph_3_5_triplets', 'test_graph_3_5_labels', 'validation_graph_2_2_triplets',
+             'validation_graph_2_2_labels']
     data ={}
     for f in files:
         data[f] = np.load(directory+'/'+f+".npy")
