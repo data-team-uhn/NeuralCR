@@ -15,7 +15,7 @@ def process_file((text,output_addr)):
         for np in sentence:
             input_term=" ".join(np)
             res, sc =ant.get_hp_id(input_term)
-            if sc > 0.5:
+            if sc > 0.75:
 				real_id_tokens=res.split(":")
 				real_id=real_id_tokens[0]+"_"+real_id_tokens[1]
 				output_file.write(real_id+"\n")
