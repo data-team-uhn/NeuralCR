@@ -171,7 +171,7 @@ def main():
     validation_set = set(concept_ids[int(len(concept_ids)*0.8):int(len(concept_ids)*0.9)])
     test_set = set(concept_ids[int(len(concept_ids)*0.9):])
 
-    #	train_triplets = generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])
+    # train_triplets = generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])
 
     word_limit=10
     data={
