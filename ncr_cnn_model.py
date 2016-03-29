@@ -45,6 +45,7 @@ def _conv_pool_layer(x, name, filter_shape):
     return conv
     # return pool
 
+
 def _fully_connected_layer(x, name, in_size, out_size):
     dense_weights=_weight_variable(name+"weights", [in_size,out_size])
     # tf.histogram_summary("dense weights", dense_weights)
@@ -70,10 +71,10 @@ class NCRModel():
         # full_layer = tf.concat(3, [layer_1gram, layer_2gram, layer_3gram, layer_4gram, layer_5gram, layer_6gram])
         # full_layer_dropout = tf.nn.dropout(pooled_layer,keep_prob)
 
-        dense1 = tf.nn.relu( _fully_connected_layer(tf.reshape(pooled_layer, [-1, config.conv_layer3_size]), "dense1_", config.conv_layer3_size, config.dense_layer1_size) )
-        dense2 = tf.nn.tanh( _fully_connected_layer(dense1, "dense2_", config.dense_layer1_size, config.dense_layer2_size) )
+        dense1 = tf.nn.relu(_fully_connected_layer(tf.reshape(pooled_layer, [-1, config.conv_layer3_size]), "dense1_", config.conv_layer3_size, config.dense_layer1_size) )
+        dense2 = tf.nn.tanh(_fully_connected_layer(dense1, "dense2_", config.dense_layer1_size, config.dense_layer2_size) )
 
-        # dense2 =  tf.nn.relu( _fully_connected_layer(dense1, "dense2_", config.dense_layer1_size, config.dense_layer2_size) )
+        # dense2 = tf.nn.relu( _fully_connected_layer(dense1, "dense2_", config.dense_layer1_size, config.dense_layer2_size) )
         # dense3 = tf.nn.tanh( _fully_connected_layer(dense2, "dense3_", config.dense_layer2_size, config.dense_layer3_size))
 
         self.rep = normalize(dense2)
