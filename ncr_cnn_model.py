@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+## hello
+
 class bigConfig:
 	max_num_of_words = 10
 	word_size = 100
