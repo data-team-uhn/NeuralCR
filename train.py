@@ -62,7 +62,7 @@ class TrainingUnit():
 
         for val_set in validation_sets:
             print val_set + " Accuracy :: ", self.feed_input(self.accuracy, sess, validation_sets[val_set])
-        print "Training Accuracy :: ", self.feed_input(self.accuracy, sess, all_training)
+		# print "Training Accuracy :: ", self.feed_input(self.accuracy, sess, all_training)
 
         step=0
         while True:
