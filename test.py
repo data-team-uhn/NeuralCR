@@ -18,7 +18,7 @@ def process_file((text,output_addr)):
             if sc > 0.5:
 				real_id_tokens=res.split(":")
 				real_id=real_id_tokens[0]+"_"+real_id_tokens[1]
-				output_file.write(real_id+"\n")
+				output_file.write(input_term + "\t" + real_id+"\n")
 
 
 
