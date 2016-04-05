@@ -16,12 +16,11 @@ class bigConfig:
 class smallConfig:
     max_num_of_words = 10
     word_size = 100
-    conv_layer1_size=256
-    conv_layer2_size=512
-    dense_layer1_size=1024
-    dense_layer2_size=1024
-    dense_layer3_size=250
-
+    conv_layer1_size=200
+    conv_layer2_size=200
+    conv_layer3_size=200
+    dense_layer1_size=500
+    dense_layer2_size=300
 
 def _conv2d(x, w):
     return tf.nn.conv2d(x, w, [1, 1, 1, 1], "SAME")

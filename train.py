@@ -11,12 +11,19 @@ def read_files():
     directory="./train_data_gen/data_files/"
     files = ['validation_synonym_3_5_triplets', 'validation_synonym_3_5_labels', 'validation_synonym_2_2_triplets',
              'validation_synonym_2_2_labels', 'validation_synonym_1_1_triplets', 'validation_synonym_1_1_labels',
+             'test_synonym_3_5_triplets', 'test_synonym_3_5_labels', 'test_synonym_2_2_triplets',
+			 'test_synonym_2_2_labels', 'test_synonym_1_1_triplets', 'test_synonym_1_1_labels',
+			 'training_triplets', 'training_labels']
+    """
+    files = ['validation_synonym_3_5_triplets', 'validation_synonym_3_5_labels', 'validation_synonym_2_2_triplets',
+             'validation_synonym_2_2_labels', 'validation_synonym_1_1_triplets', 'validation_synonym_1_1_labels',
              'validation_graph_3_5_triplets', 'validation_graph_3_5_labels', 'test_graph_2_2_triplets',
              'test_graph_2_2_labels', 'test_synonym_3_5_triplets', 'test_synonym_3_5_labels',
              'test_synonym_2_2_triplets', 'test_synonym_2_2_labels', 'test_synonym_1_1_triplets',
              'test_synonym_1_1_labels', 'training_triplets', 'training_labels',
              'test_graph_3_5_triplets', 'test_graph_3_5_labels', 'validation_graph_2_2_triplets',
              'validation_graph_2_2_labels']
+    """
     data ={}
     for f in files:
         data[f] = np.load(directory+'/'+f+".npy")
@@ -79,9 +86,10 @@ class TrainingUnit():
 
         validation_sets = {}
         test_sets = {}
-        for val_set in ['validation_synonym_3_5', 'validation_synonym_2_2', 'validation_synonym_1_1', 'validation_graph_3_5', 'validation_graph_2_2']:
+		#for val_set in ['validation_synonym_3_5', 'validation_synonym_2_2', 'validation_synonym_1_1', 'validation_graph_3_5', 'validation_graph_2_2']:
+        for val_set in ['validation_synonym_3_5', 'validation_synonym_2_2', 'validation_synonym_1_1']:
             validation_sets[val_set] = reader.read_complete_set(val_set+ '_triplets', val_set + '_labels')
-        for test_set in ['test_synonym_3_5', 'test_synonym_2_2', 'test_synonym_1_1', 'test_graph_3_5', 'test_graph_2_2']:
+        for test_set in ['test_synonym_3_5', 'test_synonym_2_2', 'test_synonym_1_1']:
             test_sets[test_set] = reader.read_complete_set(test_set+ '_triplets', test_set + '_labels')
         all_training = reader.read_complete_set('training_triplets', 'training_labels')
 
@@ -94,7 +102,7 @@ class TrainingUnit():
             print test_set, "Accuracy :: ", self.feed_input(self.accuracy, sess, test_sets[test_set])
 
 def traain():
-    modelConfig = ncr_cnn_model.bigConfig()
+    modelConfig = ncr_cnn_model.smallConfig()
     trainConfig = firstTrainConfig()
     data = read_files()
 
@@ -110,7 +118,8 @@ def traain():
     tr.train(sess, reader, saver)
 
     #	saver.restore(sess, 'checkpoints/training.ckpt')
-    for test_set in ['test_synonym_3_5', 'test_synonym_2_2', 'test_synonym_1_1', 'test_graph_3_5', 'test_graph_2_2']:
+	#for test_set in ['test_synonym_3_5', 'test_synonym_2_2', 'test_synonym_1_1', 'test_graph_3_5', 'test_graph_2_2']:
+    for test_set in ['test_synonym_3_5', 'test_synonym_2_2', 'test_synonym_1_1']:
         tmp_set = reader.read_complete_set(test_set+ '_triplets', test_set + '_labels')
         print test_set, "Accuracy :: ", tr.feed_input(tr.accuracy, sess, tmp_set)
 

@@ -160,7 +160,6 @@ def main():
         wordVector[tokens[0]] = np.array(map(float,tokens[1:]))
     pickle.dump(concepts, open('hpo.pickle','wb'))
     pickle.dump(wordVector, open('word-vectors.pickle','wb'))
-    exit()
     '''
     '''
 
@@ -174,6 +173,18 @@ def main():
     # train_triplets = generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])
 
     word_limit=10
+    data={
+        'training' : postprocess_triplets(  generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])  + generate_triplets_synonyms(train_set, concepts, neighbour, [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [1,1]), wordVector, word_limit ),
+
+        'validation_synonym_3_5' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+        'validation_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
+        'validation_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(validation_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
+
+        'test_synonym_3_5' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [3,5]) , wordVector, word_limit ),
+        'test_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
+        'test_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
+    }
+    """
     data={
         'training' : postprocess_triplets( generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [3,5]) + generate_triplets_graph_structure(train_set, concepts, neighbour, [1,1], [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [3,5])  + generate_triplets_synonyms(train_set, concepts, neighbour, [2,2]) + generate_triplets_synonyms(train_set, concepts, neighbour, [1,1]), wordVector, word_limit ),
 
@@ -192,6 +203,7 @@ def main():
         'test_synonym_2_2' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [2,2]) , wordVector, word_limit ),
         'test_synonym_1_1' : postprocess_triplets( generate_triplets_synonyms(test_set, concepts, neighbour, [1,1]) , wordVector, word_limit ),
     }
+	"""
 
     store_data(data, "./data_files/")
 
