@@ -131,6 +131,31 @@ def generate_triplets_synonyms(concept_ids, concepts, neighbour, irrelevant_inte
                     triplets.append([x_name1, x_name2, random.choice(concepts[irrelevant_concept]['names'])])
     return triplets
 
+
+
+def generate_pair_synonyms(concept_ids, concepts):
+    pairs = []
+    ct=0
+    for v in concept_ids:
+        for x_name1 in concepts[v]['names']:
+            for x_name2 in concepts[v]['names']:
+                if x_name1 != x_name2:
+                    pairs.append([x_name1, x_name2])
+    return pairs
+
+def generate_irrelevant_pairs(concept_ids, concepts, neighbour):
+    pairs = []
+    ct=0
+    for v in concept_ids:
+        for x_name1 in concepts[v]['names']:
+            for x_name2 in concepts[v]['names']:
+                if x_name1 != x_name2:
+                    pairs.append([x_name1, x_name2])
+    return pairs
+
+
+
+
 def postprocess_triplets(triplets, wordVector, word_limit):
     shuffle(triplets)
     filtered_triplets = [triplet for triplet in triplets if all([check_phrase(phrase, wordVector, word_limit) for phrase in triplet])]
