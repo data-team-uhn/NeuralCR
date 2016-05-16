@@ -43,8 +43,6 @@ class firstTrainConfig():
 class newConfig:
 	hpo_size = 10000
 	vocab_size = 50000
-	ffw_layer1_size = 500
-	ffw_layer2_size = 500
 	hidden_size = 200
 	word_embed_size = 100
 	num_layers = 1

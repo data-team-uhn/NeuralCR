@@ -51,8 +51,10 @@ class NCRModel():
 	def __init__(self, config):
 		self.alpha = config.alpha
 		self.HPO_embedding = _embedding_variable("hpo_embedding", [config.hpo_size, config.hidden_size]) 
+
 		print self.HPO_embedding.get_shape()
 		self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size])
+		#self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size], trainable = False)
 		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
 		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
@@ -60,13 +62,27 @@ class NCRModel():
 		self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
 		input_sequence_embeded = tf.nn.embedding_lookup(self.word_embedding, self.input_sequence)
 
-		single_cell = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		with tf.variable_scope('pass1'):
+			single_cell_p1 = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		with tf.variable_scope('pass2'):
+			single_cell_p2 = tf.nn.rnn_cell.GRUCell(config.hidden_size)
 #		single_cell = tf.nn.rnn_cell.LSTMCell(config.hidden_size)
 		print config.hidden_size
-		cell = single_cell
+		with tf.variable_scope('pass1'):
+			cell_p1 = single_cell_p1
+		with tf.variable_scope('pass2'):
+			cell_p2 = single_cell_p2
 		if config.num_layers > 1:
-			cell = tf.nn.rnn_cell.MultiRNNCell([single_cell] * config.num_layers)
+			with tf.variable_scope('pass1'):
+				cell_p1 = tf.nn.rnn_cell.MultiRNNCell([single_cell_p1] * config.num_layers)
+			with tf.variable_scope('pass2'):
+				cell_p2 = tf.nn.rnn_cell.MultiRNNCell([single_cell_p2] * config.num_layers)
 
 		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, config.max_sequence_length, input_sequence_embeded)]
-		self.outputs, self.state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+#		self.outputs, self.state = tf.nn.rnn(cell, inputs, self.rnn_init_state, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		with tf.variable_scope('pass1'):
+			outputs1, state_p1 = tf.nn.rnn(cell_p1,  inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		with tf.variable_scope('pass2'):
+			outputs2, state_p2 = tf.nn.rnn(cell_p2,  inputs, initial_state = state_p1, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		self.state = state_p2
 		

@@ -176,7 +176,6 @@ class Reader:
 
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 
-		shuffle(self.samples)
 		self.reset_counter()
 		self.max_length = max([len(s[0]) for s in self.samples])
 		print self.max_length
@@ -207,6 +206,7 @@ class Reader:
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 		'''
 	def reset_counter(self):
+		shuffle(self.samples)
 		self.counter = 0
 
 	def create_test_sample(self, phrases):

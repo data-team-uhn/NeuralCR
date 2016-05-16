@@ -29,11 +29,13 @@ def check_phrase(phrase, wordList, word_limit):
 
 class NeuralAnnotator:
 
-	def get_hp_id(self, querry):
+	def get_hp_id(self, querry, count):
 		#if not check_phrase(querry, self.wordList, self.modelConfig.max_num_of_words):
 		#	return None, None
 		inp = self.rd.create_test_sample([querry])
-		res = self.sess.run(self.model.get_querry_order_distance(), feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
+		board_str, res = self.sess.run([self.merged_summaries, self.model.get_querry_order_distance()], feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
+#		board_str = self.sess.run(self.merged_summaries, feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
+		self.board_writer.add_summary(board_str, count)
 		indecies = np.argsort(res[0,:])
 		
 		for i in range(5):
@@ -56,29 +58,35 @@ class NeuralAnnotator:
 		#vectorFile = open("train_data_gen/test_vectors.txt")
 
 		self.rd = reader.Reader(oboFile, vectorFile)
-		newConfig = train_oe.newConfig
-		newConfig.vocab_size = self.rd.word2vec.shape[0]
-		newConfig.word_embed_size = self.rd.word2vec.shape[1]
-		newConfig.max_sequence_length = self.rd.max_length
-		newConfig.hpo_size = len(self.rd.concept2id)
+		self.newConfig = train_oe.newConfig
+		self.newConfig.vocab_size = self.rd.word2vec.shape[0]
+		self.newConfig.word_embed_size = self.rd.word2vec.shape[1]
+		self.newConfig.max_sequence_length = self.rd.max_length
+		self.newConfig.hpo_size = len(self.rd.concept2id)
 
-		self.model = ordered_embeding.NCRModel(newConfig)
+		self.model = ordered_embeding.NCRModel(self.newConfig)
+		tf.image_summary("rep",tf.expand_dims(tf.expand_dims(self.model.state, 1),3), 3)
+		self.merged_summaries = tf.merge_all_summaries()
 
 
 		#init_op=tf.initialize_all_variables()
 		saver = tf.train.Saver()
 		self.sess = tf.Session()
+
 		#sess.run(init_op)
 		saver.restore(self.sess, 'checkpoints/training.ckpt')
+		self.board_writer = tf.train.SummaryWriter("board/",self.sess.graph)
 
 
 	
 def main():
 	ant = NeuralAnnotator()
-
+	
+	count = 0
 	while True:
 		line = sys.stdin.readline().strip()
-		ant.get_hp_id(line)
+		ant.get_hp_id(line, count)
+		count += 1
 		
 		if line == '':
 			break
