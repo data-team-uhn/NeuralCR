@@ -85,4 +85,6 @@ class NCRModel():
 		with tf.variable_scope('pass2'):
 			outputs2, state_p2 = tf.nn.rnn(cell_p2,  inputs, initial_state = state_p1, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		self.state = state_p2
+
+		self.total_loss = self.get_total_loss()
 		
