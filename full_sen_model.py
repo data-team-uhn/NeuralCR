@@ -125,9 +125,9 @@ class NCRModel():
 
 		positive_penalties = self.input_comp_mask  * self.final_distance
 		negative_penalties = (1-self.input_comp_mask)  * tf.maximum( self.alpha - self.final_distance, 0.0)
-		penalties = positive_penalties + negative_penalties
+		self.penalties = positive_penalties + negative_penalties
 				
-		self.new_loss = tf.reduce_sum(penalties, [0,1])
+		self.new_loss = tf.reduce_sum(self.penalties, [0,1])
 
 
 		'''

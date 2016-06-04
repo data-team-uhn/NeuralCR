@@ -54,12 +54,16 @@ class newConfig:
 def run_epoch(sess, model, train_step, rd, saver):
 	rd.reset_counter()
 
-	'''
 	batch = rd.read_batch(50, newConfig.comp_size)
-	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
-	print sess.run(model.distances, feed_dict = batch_feed)[0].shape
+	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
+	#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
+	#print sess.run(model.distances, feed_dict = batch_feed)[0].shape
 	print sess.run(model.comp_embedding, feed_dict = batch_feed).shape
+	print sess.run(model.penalties, feed_dict = batch_feed).shape
+	print np.sum(batch[4], axis=1)
+	print sess.run(model.state_fw, feed_dict = batch_feed).shape
 	exit()
+	'''
 	print sess.run(model.densed_outputs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.diffs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.new_loss, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]}).shape
@@ -111,7 +115,7 @@ def traain():
 #	print sess.run(model.word_embedding, feed_dict = {model.input_vectors : batch[0], model.input_ancestry_mask:batch[1]}).shape
 	saver = tf.train.Saver()
 
-	lr_init = 0.01
+	lr_init = 0.001
 	lr_decay = 0.8
 	for epoch in range(100):
 		print "epoch ::", epoch
