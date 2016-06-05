@@ -6,8 +6,7 @@ from triplet_reader import DataReader
 import ncr_cnn_model
 import sys
 import train_oe
-#import ordered_embeding
-import full_sen_model
+from ordered_embeding import NCRModel
 import reader
 
 def tokenize(phrase):
@@ -36,7 +35,9 @@ class NeuralAnnotator:
 		inp = self.rd.create_test_sample([querry])
 		print self.all_concepts
 		print inp
-		res = self.sess.run(self.querry_distance, feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts})
+		querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts}
+		#querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts}
+		res = self.sess.run(self.querry_distance, feed_dict = querry_dict)
 		#board_str, res = self.sess.run([self.merged_summaries, self.querry_distance], feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp: self.all_concepts})
 #		board_str = self.sess.run(self.merged_summaries, feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
 		#self.board_writer.add_summary(board_str, count)
@@ -68,7 +69,7 @@ class NeuralAnnotator:
 		self.newConfig.max_sequence_length = self.rd.max_length
 		self.newConfig.hpo_size = len(self.rd.concept2id)
 
-		self.model = full_sen_model.NCRModel(self.newConfig)
+		self.model = NCRModel(self.newConfig)
 		#tf.image_summary("rep",tf.expand_dims(tf.expand_dims(self.model.final_distance, 1),3), 3)
 		#self.merged_summaries = tf.merge_all_summaries()
 

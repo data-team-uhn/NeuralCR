@@ -3,8 +3,8 @@ import cPickle as pickle
 import numpy as np
 from triplet_reader import DataReader
 # from concept2vec import concept_vector_model
-#import ordered_embeding
-import full_sen_model
+from ordered_embeding import NCRModel
+#import full_sen_model
 import reader
 import sys
 
@@ -43,7 +43,7 @@ class firstTrainConfig():
 
 class newConfig:
 	hpo_size = 10000
-	comp_size = 10000
+	comp_size = 500
 	vocab_size = 50000
 	hidden_size = 200
 	word_embed_size = 100
@@ -54,6 +54,7 @@ class newConfig:
 def run_epoch(sess, model, train_step, rd, saver):
 	rd.reset_counter()
 
+	'''
 	batch = rd.read_batch(50, newConfig.comp_size)
 	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 	#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
@@ -63,7 +64,6 @@ def run_epoch(sess, model, train_step, rd, saver):
 	print np.sum(batch[4], axis=1)
 	print sess.run(model.state_fw, feed_dict = batch_feed).shape
 	exit()
-	'''
 	print sess.run(model.densed_outputs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.diffs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.new_loss, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]}).shape
@@ -75,9 +75,10 @@ def run_epoch(sess, model, train_step, rd, saver):
 	report_len = 20
 	while True:
 		batch = rd.read_batch(50, newConfig.comp_size)
-		if batch == None:
+		if ii == 100 or batch == None:
 			break
-		batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
+		batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
+		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 
 		if ii % report_len == report_len-1:
 			print "Step =", ii+1, "\tLoss =", loss/report_len
@@ -100,7 +101,7 @@ def traain():
 	newConfig.hpo_size = len(rd.concept2id)
 
 #	model = ordered_embeding.NCRModel(newConfig)
-	model = full_sen_model.NCRModel(newConfig)
+	model = NCRModel(newConfig)
 	lr = tf.Variable(0.001, trainable=False)
 	train_step = tf.train.AdamOptimizer(lr).minimize(model.new_loss)
 
@@ -115,7 +116,7 @@ def traain():
 #	print sess.run(model.word_embedding, feed_dict = {model.input_vectors : batch[0], model.input_ancestry_mask:batch[1]}).shape
 	saver = tf.train.Saver()
 
-	lr_init = 0.001
+	lr_init = 0.01
 	lr_decay = 0.8
 	for epoch in range(100):
 		print "epoch ::", epoch

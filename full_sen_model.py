@@ -91,16 +91,16 @@ class NCRModel():
 		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, config.max_sequence_length, input_sequence_embeded)]
 
 		single_cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
-		single_cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+#		single_cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
 		'''
 		single_cell_fw = tf.nn.rnn_cell.LSTMCell(config.hidden_size)
 		single_cell_bw = tf.nn.rnn_cell.LSTMCell(config.hidden_size)
 		'''
 		cell_fw = single_cell_fw
-		cell_bw = single_cell_bw
+#		cell_bw = single_cell_bw
 		if config.num_layers > 1:
 			cell_fw = tf.nn.rnn_cell.MultiRNNCell([single_cell_fw] * config.num_layers)
-			cell_bw = tf.nn.rnn_cell.MultiRNNCell([single_cell_bw] * config.num_layers)
+#			cell_bw = tf.nn.rnn_cell.MultiRNNCell([single_cell_bw] * config.num_layers)
 
 		'''
 		self.outputs, self.state_fw, self.state_bw = tf.nn.bidirectional_rnn(cell_fw, cell_bw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
@@ -127,6 +127,7 @@ class NCRModel():
 		negative_penalties = (1-self.input_comp_mask)  * tf.maximum( self.alpha - self.final_distance, 0.0)
 		self.penalties = positive_penalties + negative_penalties
 				
+
 		self.new_loss = tf.reduce_sum(self.penalties, [0,1])
 
 

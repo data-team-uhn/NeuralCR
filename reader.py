@@ -239,20 +239,23 @@ class Reader:
 
 		sequence_lengths = np.array([len(s[0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
-		'''
 		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		'''
 		comparables = np.zeros((min(batch_size, ending-self.counter), len(self.concept_id_list)), dtype = int)
 		comparables_mask = np.zeros((min(batch_size, ending-self.counter), len(self.concept_id_list)), dtype = float)
+		'''
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]] = s[0]
 
-#			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.top_nodes_id_list - self.ancestry_list[s[1]])
-#			tmp_comp += list(random.sample(self.concept_id_list - self.ancestry_list[s[1]], compare_size-len(tmp_comp)))
-			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.concept_id_list - self.ancestry_list[s[1]])
-#			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(compare_size-len(self.ancestry_list[s[1]]))
-			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(len(self.concept_id_list)-len(self.ancestry_list[s[1]]))
+			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.top_nodes_id_list - self.ancestry_list[s[1]])
+			tmp_comp += list(random.sample(self.concept_id_list - self.top_nodes_id_list - self.ancestry_list[s[1]], compare_size-len(tmp_comp)))
+#			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.concept_id_list - self.ancestry_list[s[1]])
+			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(compare_size-len(self.ancestry_list[s[1]]))
+#			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(len(self.concept_id_list)-len(self.ancestry_list[s[1]]))
+
+#			tmp_comp = list(self.concept_id_list)
+#			tmp_comp_mask = self.ancestry_mask[s[1],:]
 			comparables[i,:] = np.array(tmp_comp)
 			comparables_mask[i,:] = np.array(tmp_comp_mask)
 

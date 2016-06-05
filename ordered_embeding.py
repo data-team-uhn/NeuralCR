@@ -14,13 +14,9 @@ def _bias_variable(name, shape):
 	return tf.get_variable(name, shape = shape, initializer = tf.constant_initializer(0.1))
 
 class NCRModel():
-	def get_order_distance(self, input_embedding):
-		difs = tf.expand_dims(self.HPO_embedding, 0) - tf.expand_dims(input_embedding, 1)
-		order_distance = tf.reduce_sum(tf.pow( tf.maximum(difs, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=2) 
-		return order_distance
-
-	def get_hpo_order_distance(self):
-		difs = tf.expand_dims(self.HPO_embedding, 0) - tf.expand_dims(self.HPO_embedding, 1)
+	def get_order_distance(self, reference_embedding, input_embedding):
+		difs = reference_embedding - input_embedding
+		#difs = tf.expand_dims(self.HPO_embedding, 0) - tf.expand_dims(input_embedding, 1)
 		order_distance = tf.reduce_sum(tf.pow( tf.maximum(difs, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=2) 
 		return order_distance
 
@@ -30,8 +26,8 @@ class NCRModel():
 		order_distance = tf.reduce_sum(tf.pow( tf.maximum(difs, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=2) 
 		return order_distance
 		
-	def get_input_loss(self, ancestry_mask, input_embedding):
-		order_distance = self.get_order_distance(input_embedding)
+	def get_input_loss(self, ancestry_mask, reference_embedding, input_embedding):
+		order_distance = self.get_order_distance(reference_embedding, input_embedding)
 		positive_penalties = ancestry_mask  * order_distance
 		negative_penalties = (1-ancestry_mask)  * tf.maximum( self.alpha - order_distance, 0.0)
 		penalties = positive_penalties + negative_penalties
@@ -44,8 +40,9 @@ class NCRModel():
 		return loss 
 
 	def get_total_loss(self):
-		input_ancestry_mask = tf.gather(self.ancestry_masks, self.input_hpo_id)
-		return self.get_input_loss(input_ancestry_mask, self.state) + self.get_input_loss(input_ancestry_mask, tf.gather(self.HPO_embedding, self.input_hpo_id))
+		input_ancestry_mask = self.input_comp_mask #tf.gather(self.ancestry_masks, self.input_hpo_id)
+		reference_embedding = tf.gather(self.HPO_embedding, self.input_comp) #tf.expand_dims(self.HPO_embedding, 0)
+		return self.get_input_loss(input_ancestry_mask, reference_embedding, tf.expand_dims(self.state,1)) #+ self.get_input_loss(input_ancestry_mask, tf.gather(self.HPO_embedding, self.input_hpo_id))
 
 		
 	def __init__(self, config):
@@ -57,11 +54,16 @@ class NCRModel():
 		#self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size], trainable = False)
 		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
-		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
+#		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 		#self.input_ancestry_mask = tf.placeholder(tf.float32, shape=[None,config.hpo_size])
 		self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
 		input_sequence_embeded = tf.nn.embedding_lookup(self.word_embedding, self.input_sequence)
 
+
+		self.input_comp = tf.placeholder(tf.int32) #, shape=[None, config.comp_size])
+		self.input_comp_mask = tf.placeholder(tf.float32) #, shape=[None, config.comp_size])
+
+		'''
 		with tf.variable_scope('pass1'):
 			single_cell_p1 = tf.nn.rnn_cell.GRUCell(config.hidden_size)
 		with tf.variable_scope('pass2'):
@@ -77,14 +79,70 @@ class NCRModel():
 				cell_p1 = tf.nn.rnn_cell.MultiRNNCell([single_cell_p1] * config.num_layers)
 			with tf.variable_scope('pass2'):
 				cell_p2 = tf.nn.rnn_cell.MultiRNNCell([single_cell_p2] * config.num_layers)
+		'''
 
 		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, config.max_sequence_length, input_sequence_embeded)]
-#		self.outputs, self.state = tf.nn.rnn(cell, inputs, self.rnn_init_state, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+
+
+
+
+		'''
+		cell = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		self.outputs, self.state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		self.densed_outputs = [ self.state ]
+		'''
+
+		initializer = tf.random_uniform_initializer(-0.01, 0.01 )
+		cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		#		cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2,
+		#								  initializer=initializer)
+#		cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+#		cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		self.outputs, self.state_fw = tf.nn.rnn(cell_fw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		#self.outputs, self.state_fw, self.state_bw = tf.nn.bidirectional_rnn(cell_fw, cell_bw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		self.densed_outputs = self.outputs
+		'''
+		densed_weights = _weight_variable("densed_weights", [2*config.hidden_size, config.hidden_size])
+		densed_bias = _bias_variable("densed_bias", [config.hidden_size])
+		self.densed_outputs = [ tf.nn.tanh(tf.matmul(rnn_output, densed_weights) + densed_bias) for rnn_output in self.outputs ]
+		'''
+
+
+
+
+		reference_embedding = tf.gather(self.HPO_embedding, self.input_comp) #tf.expand_dims(self.HPO_embedding, 0)
+		self.distances = [ self.get_order_distance(reference_embedding, tf.expand_dims(input_embedding,1)) for input_embedding in self.densed_outputs]
+		self.final_distance = self.distances[0]
+		for p in self.distances:
+			self.final_distance = tf.minimum(self.final_distance, p)
+
+		positive_penalties = self.input_comp_mask  * self.final_distance
+		negative_penalties = (1-self.input_comp_mask)  * tf.maximum( self.alpha - self.final_distance, 0.0)
+		penalties = positive_penalties + negative_penalties
+				
+		self.new_loss = tf.reduce_sum(penalties, [0,1])
+
+
+		'''
+		cell = tf.nn.rnn_cell.GRUCell(config.hidden_size)
+		self.outputs, self.state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		'''
+
+		'''
 		with tf.variable_scope('pass1'):
 			outputs1, state_p1 = tf.nn.rnn(cell_p1,  inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		with tf.variable_scope('pass2'):
 			outputs2, state_p2 = tf.nn.rnn(cell_p2,  inputs, initial_state = state_p1, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		self.state = state_p2
 
-		self.total_loss = self.get_total_loss()
+		self.new_loss = self.get_total_loss()
+		self.final_distance = self.get_querry_order_distance()
+		'''
+
+
+
+
+
+
+
 		
