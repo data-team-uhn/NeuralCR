@@ -246,7 +246,16 @@ def main():
 	oboFile=open("hp.obo")
 	vectorFile=open("vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
-	reader = Reader(oboFile, vectorFile, 10)
+	reader = Reader(oboFile, vectorFile)
+	names = [item for sublist in reader.names.values() for item in sublist]
+	lens = [0]*30
+	for name in names:
+
+		lens[len(tokenize(name))]+=1
+	for i, x in enumerate(lens):
+		print i, "\t", x
+
+	exit()
         for i in range(100):
             print reader.read_batch()
 
