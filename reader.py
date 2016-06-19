@@ -87,18 +87,17 @@ def read_oboFile(oboFile):
 	return names, kids, parents, top_nodes
 
 
-def store_data(data, directory):
-	types = [ 'triplets' , 'labels', 'raw' ]
-	for x in data:
-		for i,t in enumerate(types):
-			address = directory + "/" + x + "_" + t + ".npy"
-			if t != 'raw':
-				print address, data[x][i].shape
-				np.save(address, data[x][i])
-
-
-
 class Reader:
+
+	def phrase2ids(self, phrase, add_words=False):
+		tokens = tokenize(phrase)
+		tokens.append("<END-TOKEN>")
+		if add_words:
+			for w in tokens:
+				if w not in self.word2id:
+					self.word2id[w] = len(self.word2id)
+		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
+		return ids
 
 	def _update_ancestry(self, c):
 		cid = self.concept2id[c]
@@ -113,22 +112,12 @@ class Reader:
 
 		return self.ancestry_mask[cid,:]
 
-	def phrase2ids(self, phrase):
-		tokens = tokenize(phrase)
-		tokens.append("<END-TOKEN>")
-		for w in tokens:
-			if w not in self.word2id:
-				self.word2id[w] = len(self.word2id)
-		ids = np.array( [self.word2id[w] for w in tokens] )
-		return ids
-
 	def _update_ancestry_list(self,c):
 		cid = self.concept2id[c]
 		if cid in self.ancestry_list:
 			return self.ancestry_list[cid]
 
 		self.ancestry_list[cid] = set([cid])
-
 
 		for p in self.parents[c]:
 			self.ancestry_list[cid].update(self._update_ancestry_list(p))
@@ -149,29 +138,80 @@ class Reader:
 		initial_word2id_size = len(self.word2id)
 		## Create concept to id
 		self.names, self.kids, self.parents, self.top_nodes = read_oboFile(oboFile)
+
 		self.concepts = [c for c in self.names.keys()]
 		self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))
 		self.concept_id_list = set(self.concept2id.values())
 		self.top_nodes_id_list = set([self.concept2id[x] for x in self.top_nodes])
+		self.kids_id = {self.concept2id[c]:set([self.concept2id[cc] for cc in self.kids[c]]) for c in self.kids}
+		self.unkown_term = "<UNKNOWN>"
 
-		self.ancestry_mask = np.zeros((len(self.concepts), len(self.concepts)))
+		self.name2conceptid = {}
+		for c in self.concepts:
+			for name in self.names[c]:
+				normalized_name = name.strip().lower()
+				self.name2conceptid[normalized_name] = self.concept2id[c]
+
 		self.ancestry_list = {}
+		self.ancestry_mask = np.zeros((len(self.concepts), len(self.concepts)))
 		self.samples = []
 		for c in self.concepts:
 			self._update_ancestry(c)
 			self._update_ancestry_list(c)
 			for name in self.names[c]:
-				self.samples.append( (self.phrase2ids(name), self.concept2id[c] )) #self.ancestry_mask[self.concept2id[c],:]))
+				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
+		self.word2id[self.unkown_term] = len(self.word2id)
 
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 
+		self.pmc_has_init = False
+		self.wiki_has_init = False
 		self.reset_counter()
-		self.max_length = max([len(s[0]) for s in self.samples])
+		self.max_length = 50 #max([len(s[0]) for s in self.samples])
 		print self.max_length
 
-	def init_pmc_data(self, pmcFile):
-		pmc_raw = pickle.load(pmcFile)
-		print len(pmc_raw)
+	def reset_wiki_reader(self):
+		self.wiki_samples = []
+
+		if not self.wiki_has_init:
+			return
+		shuffle(self.wiki_raws)
+		for i in range(10000):
+			tokens = self.phrase2ids(self.wiki_raws[i])
+			if len(tokens)>=50:
+				continue
+			self.wiki_samples.append((tokens, []))
+
+	def reset_pmc_reader(self):
+		self.pmc_samples=[]
+		if not self.pmc_has_init:
+			return
+		for c in self.concepts:
+			for name in self.names[c]:
+				normalized_name = name.strip().lower()
+				if normalized_name in self.pmc_raws:
+					for i in range(2):
+						buck = random.sample(self.pmc_raws[normalized_name],1)[0]
+						textid = random.sample(self.pmc_raws[normalized_name][buck],1)[0]
+
+						text = self.pmc_id2text[textid]
+						tokens = self.phrase2ids(text)
+						if len(tokens)>=50:
+							continue
+						self.pmc_samples.append((tokens, [self.name2conceptid[x] for x in self.textid2labels[textid]]))
+
+	def init_wiki_data(self, wikiFile):
+		self.wiki_has_init = True
+		self.wiki_raws = pickle.load(wikiFile)
+
+	def init_pmc_data(self, pmcFile, pmcid2textFile, pmclabelsFile):
+		self.pmc_has_init = True
+		self.pmc_raws = pickle.load(pmcFile)
+#		print self.pmc_raws.keys()
+		self.pmc_id2text = pickle.load(pmcid2textFile)
+		self.textid2labels = pickle.load(pmclabelsFile)
+		self.reset_pmc_reader()
+	#	print pmc_samples
 
 
 		## Create buckets and samples
@@ -199,7 +239,10 @@ class Reader:
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 		'''
 	def reset_counter(self):
-		shuffle(self.samples)
+		self.reset_pmc_reader()
+		self.reset_wiki_reader()
+		self.mixed_samples = self.samples + self.pmc_samples + self.wiki_samples
+		shuffle(self.mixed_samples)
 		self.counter = 0
 
 	def create_test_sample(self, phrases):
@@ -211,77 +254,61 @@ class Reader:
 		return seq, seq_lengths
 
 
-	def read_batch_from_hpo(self, batch_size):
-		if self.counter >= len(self.samples):
-			return None
-		ending = min(len(self.samples), self.counter + batch_size)
-		raw_batch = self.samples[self.counter : ending]
-
-		sequence_lengths = np.array([len(s[0]) for s in raw_batch])
-		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
-		for i,s in enumerate(raw_batch):
-			sequences[i,:sequence_lengths[i]] = s[0]
-#		ancestry_mask = np.vstack([s[1] for s in raw_batch])
-		hpo_ids = np.array([s[1] for s in raw_batch])
-
-		self.counter = ending
-
-		#return (sequences, sequence_lengths, ancestry_mask)
-		return (sequences, sequence_lengths, hpo_ids)
-
-
-
 	def read_batch(self, batch_size, compare_size):
-		if self.counter >= len(self.samples):
+		if self.counter >= len(self.mixed_samples):
 			return None
-		ending = min(len(self.samples), self.counter + batch_size)
-		raw_batch = self.samples[self.counter : ending]
+		ending = min(len(self.mixed_samples), self.counter + batch_size)
+		raw_batch = self.mixed_samples[self.counter : ending]
 
 		sequence_lengths = np.array([len(s[0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
 		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
-		'''
-		comparables = np.zeros((min(batch_size, ending-self.counter), len(self.concept_id_list)), dtype = int)
-		comparables_mask = np.zeros((min(batch_size, ending-self.counter), len(self.concept_id_list)), dtype = float)
-		'''
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]] = s[0]
+			ancestrs = set()
+			kids = set()
+			for hit in s[1]:
+				ancestrs.update(self.ancestry_list[hit])
+			for ancestr in ancestrs:
+				kids.update(self.kids_id[ancestr])
+			selected_kids = random.sample(kids - ancestrs, min(compare_size - len(ancestrs), len(kids-ancestrs)))
 
-			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.top_nodes_id_list - self.ancestry_list[s[1]])
-			tmp_comp += list(random.sample(self.concept_id_list - self.top_nodes_id_list - self.ancestry_list[s[1]], compare_size-len(tmp_comp)))
-#			tmp_comp = list(self.ancestry_list[s[1]]) + list(self.concept_id_list - self.ancestry_list[s[1]])
-			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(compare_size-len(self.ancestry_list[s[1]]))
-#			tmp_comp_mask = [1]*len(self.ancestry_list[s[1]]) + [0]*(len(self.concept_id_list)-len(self.ancestry_list[s[1]]))
-
-#			tmp_comp = list(self.concept_id_list)
-#			tmp_comp_mask = self.ancestry_mask[s[1],:]
+			tmp_comp = list(ancestrs) + list(selected_kids)
+			#tmp_comp = list(self.ancestry_list[s[1]]) + list( (self.kids_id[s[1]] | self.top_nodes_id_list) - self.ancestry_list[s[1]])
+			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp), compare_size-len(tmp_comp)))
+			tmp_comp_mask = [1]*len(ancestrs) + [0]*(compare_size-len(ancestrs))
 			comparables[i,:] = np.array(tmp_comp)
 			comparables_mask[i,:] = np.array(tmp_comp_mask)
 
-#		ancestry_mask = np.vstack([s[1] for s in raw_batch])
-		hpo_ids = np.array([s[1] for s in raw_batch])
+		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
 
 		self.counter = ending
 
-		#return (sequences, sequence_lengths, ancestry_mask)
 		return (sequences, sequence_lengths, hpo_ids, comparables, comparables_mask)
-		'''
-		if self.batch_counter > len(self.batches):
-			return None
-		cur_batch = self.batches[self.batch_counter]
-		self.batch_counter = self.batch_counter+1
-		return cur_batch
-		'''
 def main():
-
 	oboFile=open("hp.obo")
 	vectorFile=open("vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
 	print len(reader.top_nodes_id_list)
+	reader.init_pmc_data(open('pmc_samples.p'),open('pmc_id2text.p'), open('pmc_labels.p'))
+	reader.init_wiki_data(open('wiki-samples.p'))
+	print "inited"
+	reader.reset_counter()
+	while True:
+		batch = reader.read_batch(128, 300)
+		if batch == None:
+			exit()
+
 	batch = reader.read_batch(1, 300)
 	print batch
+
+	print len(reader.wiki_raws)
+	print len(reader.samples)
+	print len(reader.wiki_samples)
+	print len(reader.pmc_samples)
+	print len(reader.mixed_samples)
 #	print batch[0], reader.
 
 
@@ -289,7 +316,6 @@ def main():
         for i in range(100):
             print reader.read_batch()
 	'''
-#	reader.init_pmc_data(open('pmc_raw.p'))
 
 if __name__ == "__main__":
 	main()

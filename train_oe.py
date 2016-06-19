@@ -43,9 +43,9 @@ class firstTrainConfig():
 
 class newConfig:
 	hpo_size = 10000
-	comp_size = 500
+	comp_size = 300
 	vocab_size = 50000
-	hidden_size = 200
+	hidden_size = 400
 	word_embed_size = 100
 	num_layers = 1
 	max_sequence_length = 22
@@ -56,13 +56,10 @@ def run_epoch(sess, model, train_step, rd, saver):
 
 	'''
 	batch = rd.read_batch(50, newConfig.comp_size)
-	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
+	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 	#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 	#print sess.run(model.distances, feed_dict = batch_feed)[0].shape
-	print sess.run(model.comp_embedding, feed_dict = batch_feed).shape
-	print sess.run(model.penalties, feed_dict = batch_feed).shape
-	print np.sum(batch[4], axis=1)
-	print sess.run(model.state_fw, feed_dict = batch_feed).shape
+	print sess.run(model.chert, feed_dict = batch_feed)
 	exit()
 	print sess.run(model.densed_outputs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.diffs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
@@ -74,8 +71,8 @@ def run_epoch(sess, model, train_step, rd, saver):
 	loss = 0
 	report_len = 20
 	while True:
-		batch = rd.read_batch(50, newConfig.comp_size)
-		if ii == 100 or batch == None:
+		batch = rd.read_batch(128, newConfig.comp_size)
+		if ii == 10000 or batch == None:
 			break
 		batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
@@ -95,6 +92,8 @@ def traain():
 	#vectorFile = open("train_data_gen/test_vectors.txt")
 
 	rd = reader.Reader(oboFile, vectorFile)
+	rd.init_pmc_data(open('pmc_samples.p'),open('pmc_id2text.p'), open('pmc_labels.p'))
+	rd.init_wiki_data(open('wiki-samples.p'))
 	newConfig.vocab_size = rd.word2vec.shape[0]
 	newConfig.word_embed_size = rd.word2vec.shape[1]
 	newConfig.max_sequence_length = rd.max_length
@@ -102,13 +101,13 @@ def traain():
 
 #	model = ordered_embeding.NCRModel(newConfig)
 	model = NCRModel(newConfig)
-	lr = tf.Variable(0.001, trainable=False)
+	lr = tf.Variable(0.01, trainable=False)
 	train_step = tf.train.AdamOptimizer(lr).minimize(model.new_loss)
 
 	sess = tf.Session()
 	sess.run(tf.initialize_all_variables())
 	sess.run(tf.assign(model.word_embedding, rd.word2vec))
-#	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
+	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	
 #	print [batch[i].shape for i in range(3)]
 #	loss = model.get_loss()
