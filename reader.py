@@ -267,17 +267,22 @@ class Reader:
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]] = s[0]
 			ancestrs = set()
-			kids = set()
+			all_kids = set()
 			for hit in s[1]:
 				ancestrs.update(self.ancestry_list[hit])
 			for ancestr in ancestrs:
-				kids.update(self.kids_id[ancestr])
-			selected_kids = random.sample(kids - ancestrs, min(compare_size - len(ancestrs), len(kids-ancestrs)))
+				all_kids.update(self.kids_id[ancestr])
 
-			tmp_comp = list(ancestrs) + list(selected_kids)
-			#tmp_comp = list(self.ancestry_list[s[1]]) + list( (self.kids_id[s[1]] | self.top_nodes_id_list) - self.ancestry_list[s[1]])
-			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp), compare_size-len(tmp_comp)))
-			tmp_comp_mask = [1]*len(ancestrs) + [0]*(compare_size-len(ancestrs))
+			all_positives = ancestrs
+			selected_positives = ancestrs
+
+			selected_kids = random.sample(all_kids - all_positives, min(compare_size - len(selected_positives), len(all_kids-all_positives)))
+
+			tmp_comp = list(selected_positives) + list(selected_kids)
+			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp)- all_positives, compare_size-len(tmp_comp)))
+
+			tmp_comp_mask = [1]*len(selected_positives) + [0]*(compare_size-len(selected_positives))
+
 			comparables[i,:] = np.array(tmp_comp)
 			comparables_mask[i,:] = np.array(tmp_comp_mask)
 

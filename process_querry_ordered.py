@@ -37,9 +37,12 @@ class NeuralAnnotator:
 		#querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts}
 		res_querry = self.sess.run(self.model.querry_distance, feed_dict = querry_dict)
 		res_final = self.sess.run(self.model.final_distance, feed_dict = querry_dict)
+		print self.sess.run(self.model.outputs[0], feed_dict = querry_dict)
 		#board_str, res = self.sess.run([self.merged_summaries, self.querry_distance], feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp: self.all_concepts})
 #		board_str = self.sess.run(self.merged_summaries, feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
 		#self.board_writer.add_summary(board_str, count)
+
+
 		indecies = np.argsort(res_final[0,:])
 		
 		for i in range(5):
@@ -47,9 +50,9 @@ class NeuralAnnotator:
 
 		num_printed = 0
 		for i in indecies:
-			print self.rd.concepts[i], self.rd.names[self.rd.concepts[i]], res_final[0,i], res_querry[0,i]
+			print self.rd.concepts[i], self.rd.names[self.rd.concepts[i]], res_final[0,i] , res_querry[0,i]
 			num_printed += 1
-			if res_final[0,i] >= 1.0: # or num_printed>10:
+			if res_final[0,i] >= 1.0 and num_printed>10:
 				break
 
 
@@ -72,7 +75,6 @@ class NeuralAnnotator:
 		#tf.image_summary("rep",tf.expand_dims(tf.expand_dims(self.model.final_distance, 1),3), 3)
 		#self.merged_summaries = tf.merge_all_summaries()
 
-		self.querry_distance = self.model.querry_distance
 		self.all_concepts = np.array(list(self.rd.concept_id_list))
 
 		#init_op=tf.initialize_all_variables()

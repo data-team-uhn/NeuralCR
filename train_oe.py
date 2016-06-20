@@ -43,7 +43,7 @@ class firstTrainConfig():
 
 class newConfig:
 	hpo_size = 10000
-	comp_size = 300
+	comp_size = 400
 	vocab_size = 50000
 	hidden_size = 400
 	word_embed_size = 100
@@ -59,7 +59,7 @@ def run_epoch(sess, model, train_step, rd, saver):
 	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 	#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 	#print sess.run(model.distances, feed_dict = batch_feed)[0].shape
-	print sess.run(model.chert, feed_dict = batch_feed)
+	print sess.run(model.ttt, feed_dict = batch_feed).shape
 	exit()
 	print sess.run(model.densed_outputs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
 	print sess.run(model.diffs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
@@ -69,7 +69,7 @@ def run_epoch(sess, model, train_step, rd, saver):
 
 	ii = 0
 	loss = 0
-	report_len = 20
+	report_len = 5
 	while True:
 		batch = rd.read_batch(128, newConfig.comp_size)
 		if ii == 10000 or batch == None:

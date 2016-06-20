@@ -4,7 +4,7 @@ import numpy as np
 
 def _embedding_variable(name, shape):
 	return _weight_variable(name, shape)
-	#	return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
+	return tf.get_variable(name, shape = shape, initializer = tf.constant_initializer(value=0.0, dtype=tf.float32))
 
 def _weight_variable(name, shape):
 	return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
@@ -95,14 +95,14 @@ class NCRModel():
 
 		initializer = tf.random_uniform_initializer(-0.01, 0.01 )
 		with tf.variable_scope('forward'):
-			cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2)
+			cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2, activation=tf.nn.tanh)
 		with tf.variable_scope('backward'):
-			cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2)
+			cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2, activation=tf.nn.tanh)
 
 		self.outputs, self.state_fw, self.state_bw = tf.nn.bidirectional_rnn(cell_fw, cell_bw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
-		self.split_outputs = [tf.split(1,2,output) for output in self.outputs]
+#		self.split_outputs = [tf.split(1,2,output) for output in self.outputs]
 	#	self.densed_outputs = [out[0] for out in self.outputs]
-		self.densed_outputs = self.outputs 
+#		self.densed_outputs = self.outputs 
 		'''
 		self.outputs_fw, self.state_fw = tf.nn.rnn(cell_fw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		self.outputs_bw_rev, self.state_bw = tf.nn.rnn(cell_bw, _reverse_seq(inputs, self.input_sequence_lengths), dtype=tf.float32, sequence_length=self.input_sequence_lengths)
@@ -111,13 +111,18 @@ class NCRModel():
 		'''
 		
 		reference_embedding = tf.gather(self.HPO_embedding, self.input_comp) #tf.expand_dims(self.HPO_embedding, 0)
-		self.distances = [ self.get_order_distance(reference_embedding, tf.expand_dims(input_embedding,1)) for input_embedding in self.densed_outputs]
-		self.querry_distances = [ self.get_vector_distance(reference_embedding, tf.expand_dims(input_embedding,1)) for input_embedding in self.densed_outputs]
+#		reference_embedding = tf.reshape(tf.matmul(tf.reshape(tf.gather(self.ancestry_masks, self.input_comp), [-1, config.hpo_size]), self.HPO_embedding), tf.concat(0,[tf.shape(self.input_comp),tf.constant(config.hidden_size, shape=[1])]))  #tf.expand_dims(self.HPO_embedding, 0)
+		#reference_embedding = tf.reduce_sum(tf.gather(self.HPO_embedding, self.input_comp), [2])  #tf.expand_dims(self.HPO_embedding, 0)
+		#reference_embedding = tf.gather(self.HPO_embedding, self.input_comp)  #tf.expand_dims(self.HPO_embedding, 0)
+		#self.distances = [ self.get_order_distance(reference_embedding, tf.expand_dims(tf.nn.relu(input_embedding),1)) for input_embedding in self.outputs]
 
+		self.distances = [ self.get_order_distance(reference_embedding, tf.expand_dims(input_embedding,1)) for input_embedding in self.outputs]
 		self.final_distance = self.distances[0]
 		for i,p in enumerate(self.distances):
 			condition = (i+1 < self.input_sequence_lengths)
 			self.final_distance = tf.select(condition, tf.minimum(self.final_distance, p), self.final_distance)
+			
+		self.querry_distances = [ self.get_vector_distance(reference_embedding, tf.expand_dims(input_embedding,1)) for input_embedding in self.outputs]
 		self.querry_distance = self.querry_distances[0]
 		for i,p in enumerate(self.querry_distances):
 			condition = (i+1 < self.input_sequence_lengths)
@@ -125,10 +130,13 @@ class NCRModel():
 
 		input_loss = self.get_pos_neg_loss(self.input_comp_mask, self.final_distance)  
 		input_id_hpo_embedding = tf.gather(self.HPO_embedding, self.input_hpo_id)
+
 		hpo_loss = tf.select(tf.reduce_sum(self.input_comp_mask, 1)>0,
 				self.get_pos_neg_loss(tf.gather(self.ancestry_masks, self.input_hpo_id),	self.get_order_distance(tf.expand_dims(self.HPO_embedding,0), tf.expand_dims(input_id_hpo_embedding,1))),
 					tf.zeros_like(input_loss))
 		self.new_loss =  tf.reduce_mean(input_loss + hpo_loss, [0]) 
+
+#		self.new_loss =  tf.reduce_mean(input_loss, [0])# - tf.reduce_sum(tf.minimum(0.0,self.HPO_embedding))
 						
 		'''
 		positive_penalties = self.input_comp_mask  * self.final_distance
