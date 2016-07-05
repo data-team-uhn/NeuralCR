@@ -9,92 +9,101 @@ import train_oe
 from ordered_embeding import NCRModel
 import reader
 
-def tokenize(phrase):
-	return phrase.lower().replace(',',' ').replace('-',' ').replace(';', ' ').strip().split()	
-
-def embed_phrase(phrase, wordList, padded_size):
-	words = tokenize(phrase)
-	em_list = [wordList[w] for w in words]
-	em_list += [np.zeros(wordList["the"].shape)]*(padded_size-len(words))
-	embeding = np.concatenate(em_list)
-	return embeding
-
-def check_phrase(phrase, wordList, word_limit):	
-	words = tokenize(phrase)
-	if len(words) <= word_limit and all([(w in wordList) for w in words]):
-		return True
-	return False
+def prepare_samples(rd, samplesFile):
+	samples = {}
+	ct = 0
+	for line in samplesFile:
+		tokens = line.strip().split("\t")
+		real_hp_id = rd.real_id[tokens[1].strip().replace("_",":")]
+		if real_hp_id not in rd.concepts:
+			continue
+		samples[tokens[0].strip()] = [real_hp_id]
+		ct += 1
+		if ct == 500000:
+			break
+	return samples
 
 class NeuralAnnotator:
 
 	def get_hp_id(self, querry, count):
-		#if not check_phrase(querry, self.wordList, self.modelConfig.max_num_of_words):
-		#	return None, None
-		inp = self.rd.create_test_sample([querry])
-		print self.all_concepts
-		print inp
-		querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts}
-		#querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp:self.all_concepts}
-		res_querry = self.sess.run(self.model.querry_distance, feed_dict = querry_dict)
-		res_final = self.sess.run(self.model.final_distance, feed_dict = querry_dict)
-		print self.sess.run(self.model.outputs[0], feed_dict = querry_dict)
-		#board_str, res = self.sess.run([self.merged_summaries, self.querry_distance], feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1], self.model.input_comp: self.all_concepts})
-#		board_str = self.sess.run(self.merged_summaries, feed_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]})
-		#self.board_writer.add_summary(board_str, count)
+		inp = self.rd.create_test_sample(querry)
+		querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]}
+		res_querry = self.sess.run(self.querry_distances, feed_dict = querry_dict)
+		results=[]
+		for s in range(len(querry)):
+			indecies_querry = np.argsort(res_querry[s,:])
+			tmp_res = []
+			num_printed = 0
+			for i in indecies_querry:
+				num_printed += 1
+				tmp_res.append(self.rd.concepts[i])
+				if num_printed>=count:
+					break
+			results.append(tmp_res)
+		return results
+	
+	def find_accuracy(self, samples, top_size):
+		header = 0
+		batch_size = 64
 
+		hit=[0]*top_size
+		nohit=0
 
-		indecies = np.argsort(res_final[0,:])
+		while header < len(samples):
+			batch = {x:samples[x] for x in samples.keys()[header:min(header+batch_size, len(samples))]}
+			header += batch_size
+			results = self.get_hp_id(batch.keys(),top_size)
+			for i,s in enumerate(batch):
+				nohit += 1
+				for attempt,res in enumerate(results[i]):
+					if res in batch[s]:
+						hit[attempt] += 1
+						nohit -= 1
+						break
+		total = sum(hit) + nohit
+#		print 1.0 - float(nohit)/total
+#		print hit, nohit
+		return total - nohit, total
 		
-		for i in range(5):
-			print "------------------------------------------"
-
-		num_printed = 0
-		for i in indecies:
-			print self.rd.concepts[i], self.rd.names[self.rd.concepts[i]], res_final[0,i] , res_querry[0,i]
-			num_printed += 1
-			if res_final[0,i] >= 1.0 and num_printed>10:
-				break
-
-
-		
-		
-	def __init__(self):
-
-		oboFile = open("hp.obo")
-		vectorFile = open("vectors.txt")
-		#vectorFile = open("train_data_gen/test_vectors.txt")
-
-		self.rd = reader.Reader(oboFile, vectorFile)
-		self.newConfig = train_oe.newConfig
-		self.newConfig.vocab_size = self.rd.word2vec.shape[0]
-		self.newConfig.word_embed_size = self.rd.word2vec.shape[1]
-		self.newConfig.max_sequence_length = self.rd.max_length
-		self.newConfig.hpo_size = len(self.rd.concept2id)
-
-		self.model = NCRModel(self.newConfig)
-		#tf.image_summary("rep",tf.expand_dims(tf.expand_dims(self.model.final_distance, 1),3), 3)
-		#self.merged_summaries = tf.merge_all_summaries()
-
-		self.all_concepts = np.array(list(self.rd.concept_id_list))
-
-		#init_op=tf.initialize_all_variables()
-		saver = tf.train.Saver()
-		self.sess = tf.Session()
-
-		#sess.run(init_op)
-		saver.restore(self.sess, 'checkpoints/training.ckpt')
-		#self.board_writer = tf.train.SummaryWriter("board/",self.sess.graph)
-
+	def __init__(self, model, rd ,sess):
+		self.model=model
+		self.rd = rd
+		self.sess = sess
+		self.querry_distances = self.model.get_querry_distance()
 
 	
 def main():
-	ant = NeuralAnnotator()
+	oboFile = open("hp.obo")
+	vectorFile = open("vectors.txt")
+	samplesFile = open("labeled_data")
+
+	rd = reader.Reader(oboFile, vectorFile)
+
+	newConfig = train_oe.newConfig
+	newConfig.vocab_size = rd.word2vec.shape[0]
+	newConfig.word_embed_size = rd.word2vec.shape[1]
+	newConfig.max_sequence_length = rd.max_length
+	newConfig.hpo_size = len(rd.concept2id)
+
+	model = NCRModel(newConfig)
+
+	sess = tf.Session()
+	saver = tf.train.Saver()
+	saver.restore(sess, 'checkpoints/training.ckpt')
+
+	ant = NeuralAnnotator(model, rd, sess)
+	samples = prepare_samples(rd, samplesFile)
+
+
+	top_size = 5
+
+	hit, total = ant.find_accuracy(samples, top_size)
+	print hit, total, float(hit)/total
 	
-	count = 0
 	print ">>"
 	while True:
 		line = sys.stdin.readline().strip()
-		ant.get_hp_id(line, count)
+		ant.get_hp_id([line], top_size)
 		count += 1
 		
 		if line == '':

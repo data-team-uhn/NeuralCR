@@ -48,6 +48,7 @@ def read_oboFile(oboFile):
 	names={}
 	kids={}
 	parents={}
+	real_id = {}
 	while True:
 		line=oboFile.readline()
 		if line == "":
@@ -58,12 +59,16 @@ def read_oboFile(oboFile):
 			parents[hp_id] = []
 			kids[hp_id] = []
 			names[hp_id] = []
+			real_id[hp_id] = hp_id
 
 		if tokens[0] == "name:":
 			names[hp_id] = [' '.join(tokens[1:])]
 		if tokens[0] == "synonym:":
 			last_index = (i for i,v in enumerate(tokens) if v.endswith("\"")).next()
 			names[hp_id].append( ' '.join(tokens[1:last_index+ 1]).strip("\"") )
+		if tokens[0] == "alt_id:":
+			real_id[tokens[1]] = hp_id
+
 	oboFile.seek(0)
 	while True:
 		line=oboFile.readline()
@@ -84,7 +89,7 @@ def read_oboFile(oboFile):
 	kids = {c:kids[c] for c in mark}
 	for c in parents:
 		parents[c]=[p for p in parents[c] if p in mark]
-	return names, kids, parents, top_nodes
+	return names, kids, parents, top_nodes, real_id
 
 
 class Reader:
@@ -137,7 +142,7 @@ class Reader:
 		self.word2vec = np.vstack(word_vectors)                
 		initial_word2id_size = len(self.word2id)
 		## Create concept to id
-		self.names, self.kids, self.parents, self.top_nodes = read_oboFile(oboFile)
+		self.names, self.kids, self.parents, self.top_nodes, self.real_id = read_oboFile(oboFile)
 
 		self.concepts = [c for c in self.names.keys()]
 		self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))

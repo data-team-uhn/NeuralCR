@@ -26,8 +26,26 @@ def multilayer(name, inp, shape, activation):
 
 
 
-
 class NCRModel():
+
+	def concept_phrase_dis_all(self, ph_v):
+		c_v = tf.expand_dims(self.HPO_embedding, 0)
+		return tf.reduce_sum(tf.pow(c_v - tf.expand_dims(ph_v,1), 2.0), [2])
+
+	def get_querry_distance(self):
+		return self.concept_phrase_dis_all(self.state)
+
+	def concept_phrase_dis(self, ph_v ,c_id):
+		c_v = tf.gather(self.HPO_embedding, c_id)
+		return tf.reduce_sum(tf.pow(c_v-ph_v, 2.0), [1])
+
+	def concept_concept_order_dis(self, c_id_q): # ,c_id_p):
+		#difs = tf.gather(self.HPO_embedding, c_id_p) - tf.gather(self.HPO_embedding, c_id_q)
+		self.r_difs = tf.expand_dims(self.HPO_embedding,0)- tf.expand_dims(tf.gather(self.HPO_embedding, c_id_q),1)
+		difs = self.r_difs
+		order_distance = tf.reduce_sum(tf.pow( tf.maximum(difs, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=2) 
+		return order_distance
+
 	def get_order_distance(self, reference_embedding, input_embedding):
 		difs = reference_embedding - input_embedding
 		#difs = tf.expand_dims(self.HPO_embedding, 0) - tf.expand_dims(input_embedding, 1)
@@ -58,20 +76,20 @@ class NCRModel():
 		
 	def __init__(self, config):
 		self.alpha = config.alpha
+		self.beta = config.beta
 		self.HPO_embedding = _embedding_variable("hpo_embedding", [config.hpo_size, config.hidden_size]) 
-
-		print self.HPO_embedding.get_shape()
 		self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size])
-		#self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size], trainable = False)
+
 		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
+
 		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 		#self.input_ancestry_mask = tf.placeholder(tf.float32, shape=[None,config.hpo_size])
 		self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
 		input_sequence_embeded = tf.nn.embedding_lookup(self.word_embedding, self.input_sequence)
 
-		self.input_comp = tf.placeholder(tf.int32) #, shape=[None, config.comp_size])
-		self.input_comp_mask = tf.placeholder(tf.float32) #, shape=[None, config.comp_size])
+#		self.input_comp = tf.placeholder(tf.int32) #, shape=[None, config.comp_size])
+#		self.input_comp_mask = tf.placeholder(tf.float32) #, shape=[None, config.comp_size])
 
 		'''
 		with tf.variable_scope('pass1'):
@@ -94,22 +112,39 @@ class NCRModel():
 		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, config.max_sequence_length, input_sequence_embeded)]
 
 		initializer = tf.random_uniform_initializer(-0.01, 0.01 )
+		'''
 		with tf.variable_scope('forward'):
 			cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2, activation=tf.nn.tanh)
 		with tf.variable_scope('backward'):
 			cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_size/2, activation=tf.nn.tanh)
 
 		self.outputs, self.state_fw, self.state_bw = tf.nn.bidirectional_rnn(cell_fw, cell_bw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		'''
 #		self.split_outputs = [tf.split(1,2,output) for output in self.outputs]
 	#	self.densed_outputs = [out[0] for out in self.outputs]
 #		self.densed_outputs = self.outputs 
+		cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_size, activation=tf.nn.tanh)
 		'''
 		self.outputs_fw, self.state_fw = tf.nn.rnn(cell_fw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		self.outputs_bw_rev, self.state_bw = tf.nn.rnn(cell_bw, _reverse_seq(inputs, self.input_sequence_lengths), dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		self.outputs_bw = _reverse_seq(self.outputs_bw_rev, self.input_sequence_lengths)
 		#self.outputs, self.state_fw = tf.nn.rnn(cell_fw, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		'''
-		
+
+		cell = tf.nn.rnn_cell.GRUCell(config.hidden_size, activation=tf.nn.tanh)
+		self.outputs, self.state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+
+		cdistance = self.concept_concept_order_dis(self.input_hpo_id)
+		mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
+
+		self.c2c_pos = tf.reduce_sum(mask * cdistance, 1)
+		self.c2c_neg = tf.reduce_sum((1-mask)*tf.maximum(0.0, self.alpha - cdistance), 1)
+		self.p2c = self.concept_phrase_dis(self.state, self.input_hpo_id)
+
+		self.new_loss = tf.reduce_mean(self.c2c_pos + self.c2c_neg + self.p2c)
+
+		return
+	
 		reference_embedding = tf.gather(self.HPO_embedding, self.input_comp) #tf.expand_dims(self.HPO_embedding, 0)
 #		reference_embedding = tf.reshape(tf.matmul(tf.reshape(tf.gather(self.ancestry_masks, self.input_comp), [-1, config.hpo_size]), self.HPO_embedding), tf.concat(0,[tf.shape(self.input_comp),tf.constant(config.hidden_size, shape=[1])]))  #tf.expand_dims(self.HPO_embedding, 0)
 		#reference_embedding = tf.reduce_sum(tf.gather(self.HPO_embedding, self.input_comp), [2])  #tf.expand_dims(self.HPO_embedding, 0)
@@ -134,7 +169,8 @@ class NCRModel():
 		hpo_loss = tf.select(tf.reduce_sum(self.input_comp_mask, 1)>0,
 				self.get_pos_neg_loss(tf.gather(self.ancestry_masks, self.input_hpo_id),	self.get_order_distance(tf.expand_dims(self.HPO_embedding,0), tf.expand_dims(input_id_hpo_embedding,1))),
 					tf.zeros_like(input_loss))
-		self.new_loss =  tf.reduce_mean(input_loss + hpo_loss, [0]) 
+		self.new_loss =  tf.reduce_mean(input_loss + hpo_loss, [0]) #- tf.reduce_sum(tf.minimum(0.0,self.HPO_embedding))
+
 
 #		self.new_loss =  tf.reduce_mean(input_loss, [0])# - tf.reduce_sum(tf.minimum(0.0,self.HPO_embedding))
 						
@@ -145,7 +181,6 @@ class NCRModel():
 				
 		self.new_loss = tf.reduce_sum(penalties, [0,1]) + self.get_input_loss(input_ancestry_mask, tf.gather(self.HPO_embedding, self.input_hpo_id)
 		'''
-
 
 		'''
 		cell = tf.nn.rnn_cell.GRUCell(config.hidden_size)
