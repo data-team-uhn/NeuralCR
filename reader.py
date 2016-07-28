@@ -3,6 +3,7 @@ import random
 import numpy as np
 import cPickle as pickle
 from itertools import product
+import nltk
 
 total=0
 marked={}
@@ -35,7 +36,7 @@ def is_number(s):
         return False
 
 def tokenize(phrase):
-	tmp = phrase.lower().replace(',',' ').replace('-',' ').replace(';', ' ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').strip().split()
+	tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').strip().split()
 	return ["INT" if w.isdigit() else ("FLOAT" if is_number(w) else w) for w in tmp]
 
 def dfs(c, kids, mark):
@@ -101,8 +102,18 @@ class Reader:
 			for w in tokens:
 				if w not in self.word2id:
 					self.word2id[w] = len(self.word2id)
+
 		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
-		return ids
+		if self.stemmed_word2vec is not None:
+			stemmed_tokens = map(nltk.stem.PorterStemmer().stem, tokens)
+			if add_words:
+				for w in stemmed_tokens:
+					if w not in self.stemmed_word2id:
+						self.stemmed_word2id[w] = len(self.stemmed_word2id)
+			stemmed_ids = np.array( [self.stemmed_word2id[w] if w in self.stemmed_word2id else self.stemmed_word2id[self.unkown_term] for w in stemmed_tokens] )
+			return ids, stemmed_ids
+
+		return ids, None
 
 	def _update_ancestry(self, c):
 		cid = self.concept2id[c]
@@ -131,7 +142,7 @@ class Reader:
 
 
 
-	def __init__(self, oboFile, vectorFile):
+	def __init__(self, oboFile, vectorFile, stemmed_vectorFile=None):
 		## Create word to id
 		word_vectors=[]
 		self.word2id={}
@@ -139,8 +150,22 @@ class Reader:
 			tokens = line.strip().split(" ")
 			word_vectors.append(np.array(map(float,tokens[1:])))
 			self.word2id[tokens[0]] = i
-		self.word2vec = np.vstack(word_vectors)                
+		self.word2vec = np.vstack(word_vectors)
+
+		stemmed_word_vectors=[]
+		self.stemmed_word2id={}
+		self.stemmed_word2vec = None
+		if stemmed_vectorFile != None:
+			for i,line in enumerate(stemmed_vectorFile):
+				tokens = line.strip().split(" ")
+				stemmed_word_vectors.append(np.array(map(float,tokens[1:])))
+				self.stemmed_word2id[tokens[0]] = i
+			self.stemmed_word2vec = np.vstack(stemmed_word_vectors)
+			print self.stemmed_word2vec.shape
+
+
 		initial_word2id_size = len(self.word2id)
+		initial_stemmed_word2id_size = len(self.stemmed_word2id)
 		## Create concept to id
 		self.names, self.kids, self.parents, self.top_nodes, self.real_id = read_oboFile(oboFile)
 
@@ -166,8 +191,10 @@ class Reader:
 			for name in self.names[c]:
 				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
 		self.word2id[self.unkown_term] = len(self.word2id)
+		self.stemmed_word2id[self.unkown_term] = len(self.stemmed_word2id)
 
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
+		self.stemmed_word2vec = np.vstack((self.stemmed_word2vec, np.zeros((len(self.stemmed_word2id) - initial_stemmed_word2id_size,self.stemmed_word2vec.shape[1]))))
 
 		self.pmc_has_init = False
 		self.wiki_has_init = False
@@ -252,6 +279,7 @@ class Reader:
 
 	def create_test_sample(self, phrases):
 		seq = np.zeros((len(phrases), self.max_length), dtype = int)
+		stemmed_seq = np.zeros((len(phrases), self.max_length), dtype = int)
 		phrase_ids = [self.phrase2ids(phrase) for phrase in phrases]
 		seq_lengths = np.array([len(phrase) for phrase in phrase_ids])
 		for i,s in enumerate(phrase_ids):
@@ -265,12 +293,13 @@ class Reader:
 		ending = min(len(self.mixed_samples), self.counter + batch_size)
 		raw_batch = self.mixed_samples[self.counter : ending]
 
-		sequence_lengths = np.array([len(s[0]) for s in raw_batch])
+		sequence_lengths = np.array([len(s[0][0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
+		stemmed_sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
 		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		for i,s in enumerate(raw_batch):
-			sequences[i,:sequence_lengths[i]] = s[0]
+			sequences[i,:sequence_lengths[i]], stemmed_sequences[i,:sequence_lengths[i]] = s[0]
 			ancestrs = set()
 			all_kids = set()
 			for hit in s[1]:
@@ -295,12 +324,21 @@ class Reader:
 
 		self.counter = ending
 
-		return (sequences, sequence_lengths, hpo_ids, comparables, comparables_mask)
+		return {'seq':sequences, 'stem_seq':stemmed_sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids, 'comparables':comparables, 'comparables_mask':comparables_mask}
+
 def main():
 	oboFile=open("hp.obo")
 	vectorFile=open("vectors.txt")
+	stemmed_vectorFile=open("stemmed_vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
-	reader = Reader(oboFile, vectorFile)
+	reader = Reader(oboFile, vectorFile, stemmed_vectorFile)
+	batch = reader.read_batch(5, 300)
+	print batch
+	exit()
+	reader.reset_counter()
+	batch = reader.read_batch(5, 300)
+	print batch
+	return
 	print len(reader.top_nodes_id_list)
 	reader.init_pmc_data(open('pmc_samples.p'),open('pmc_id2text.p'), open('pmc_labels.p'))
 	reader.init_wiki_data(open('wiki-samples.p'))

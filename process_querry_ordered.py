@@ -8,6 +8,7 @@ import sys
 import train_oe
 from ordered_embeding import NCRModel
 import reader
+import argparse
 
 def prepare_samples(rd, samplesFile):
 	samples = {}
@@ -25,7 +26,7 @@ def prepare_samples(rd, samplesFile):
 
 class NeuralAnnotator:
 
-	def get_hp_id(self, querry, count):
+	def get_hp_id(self, querry, count=5):
 		inp = self.rd.create_test_sample(querry)
 		querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]}
 		res_querry = self.sess.run(self.querry_distances, feed_dict = querry_dict)
@@ -36,7 +37,7 @@ class NeuralAnnotator:
 			num_printed = 0
 			for i in indecies_querry:
 				num_printed += 1
-				tmp_res.append(self.rd.concepts[i])
+				tmp_res.append((self.rd.concepts[i],res_querry[s,i]))
 				if num_printed>=count:
 					break
 			results.append(tmp_res)
@@ -54,12 +55,20 @@ class NeuralAnnotator:
 			header += batch_size
 			results = self.get_hp_id(batch.keys(),top_size)
 			for i,s in enumerate(batch):
-				nohit += 1
+				hashit = False
 				for attempt,res in enumerate(results[i]):
-					if res in batch[s]:
+					if res[0] in batch[s]:
 						hit[attempt] += 1
-						nohit -= 1
+						hashit = True
 						break
+				if not hashit:
+					nohit += 1
+					if self.verbose:
+						print "---------------------"
+						print s, batch[s], self.rd.names[batch[s][0]]
+						print ""
+						for res in results[i]:
+							print res[0], self.rd.names[res[0]], res[1]
 		total = sum(hit) + nohit
 #		print 1.0 - float(nohit)/total
 #		print hit, nohit
@@ -69,10 +78,16 @@ class NeuralAnnotator:
 		self.model=model
 		self.rd = rd
 		self.sess = sess
-		self.querry_distances = self.model.get_querry_distance()
+		self.querry_distances = self.model.get_querry_dis()
+		self.verbose = False
 
 	
 def main():
+	parser = argparse.ArgumentParser(description='Hello!')
+	parser.add_argument('--repdir', help="The location where the checkpoints are stored, default is \'checkpoints/\'", default="checkpoints/")
+	parser.add_argument('--verbose', help="Print incorrect predictions", action='store_true', default=False)
+	args = parser.parse_args()
+
 	oboFile = open("hp.obo")
 	vectorFile = open("vectors.txt")
 	samplesFile = open("labeled_data")
@@ -84,27 +99,40 @@ def main():
 	newConfig.word_embed_size = rd.word2vec.shape[1]
 	newConfig.max_sequence_length = rd.max_length
 	newConfig.hpo_size = len(rd.concept2id)
+	newConfig.last_state = True
 
 	model = NCRModel(newConfig)
 
 	sess = tf.Session()
 	saver = tf.train.Saver()
-	saver.restore(sess, 'checkpoints/training.ckpt')
+	saver.restore(sess, args.repdir + '/training.ckpt')
 
 	ant = NeuralAnnotator(model, rd, sess)
+	ant.verbose = args.verbose
 	samples = prepare_samples(rd, samplesFile)
-
+	training_samples = {}
+	for hpid in rd.names:
+		for s in rd.names[hpid]:
+			training_samples[s]=[hpid]
 
 	top_size = 5
 
 	hit, total = ant.find_accuracy(samples, top_size)
+	exit()
+	'''
+	hit, total = ant.find_accuracy(training_samples, top_size)
 	print hit, total, float(hit)/total
+	exit()
+	'''
 	
 	print ">>"
 	while True:
 		line = sys.stdin.readline().strip()
-		ant.get_hp_id([line], top_size)
-		count += 1
+		res = ant.get_hp_id([line], top_size)
+		for r in res:
+			for rid in r:
+				print rid[0], rd.names[rid[0]], rid[1]
+
 		
 		if line == '':
 			break
