@@ -46,7 +46,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 	report_len = 5
 	while True:
 		batch = rd.read_batch(newConfig.batch_size, newConfig.comp_size)
-		if ii == 200000 or batch == None:
+		if ii == 20 or batch == None:
 			break
 		batch_feed = {model.input_sequence : batch['seq'], model.input_stemmed_sequence : batch['stem_seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
 		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
