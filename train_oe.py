@@ -61,6 +61,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 		ii += 1
 
 def main():
+	print "train_oe"
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
