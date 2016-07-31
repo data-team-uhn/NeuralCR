@@ -28,7 +28,7 @@ class NeuralAnnotator:
 
 	def get_hp_id(self, querry, count=5):
 		inp = self.rd.create_test_sample(querry)
-		querry_dict = {self.model.input_sequence : inp[0], self.model.input_sequence_lengths: inp[1]}
+		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_stemmed_sequence : inp['stem_seq'], self.model.input_sequence_lengths: inp['seq_len']}
 		res_querry = self.sess.run(self.querry_distances, feed_dict = querry_dict)
 		results=[]
 		for s in range(len(querry)):

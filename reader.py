@@ -105,6 +105,7 @@ class Reader:
 
 		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
 		if self.stemmed_word2vec is not None:
+			tokens = map(lambda word : word if max(map(ord,word))<128 else self.unkown_term, tokens) ## TODO
 			stemmed_tokens = map(nltk.stem.PorterStemmer().stem, tokens)
 			if add_words:
 				for w in stemmed_tokens:
@@ -281,10 +282,12 @@ class Reader:
 		seq = np.zeros((len(phrases), self.max_length), dtype = int)
 		stemmed_seq = np.zeros((len(phrases), self.max_length), dtype = int)
 		phrase_ids = [self.phrase2ids(phrase) for phrase in phrases]
-		seq_lengths = np.array([len(phrase) for phrase in phrase_ids])
+		seq_lengths = np.array([len(phrase[0]) for phrase in phrase_ids])
 		for i,s in enumerate(phrase_ids):
-			seq[i,:seq_lengths[i]] = s
-		return seq, seq_lengths
+			seq[i,:seq_lengths[i]] = s[0]
+			if s[1] is not None:
+				stemmed_seq[i,:seq_lengths[i]] = s[1]
+		return {'seq':seq, 'stem_seq':stemmed_seq, 'seq_len':seq_lengths}
 
 
 	def read_batch(self, batch_size, compare_size):

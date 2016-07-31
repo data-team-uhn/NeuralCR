@@ -6,12 +6,12 @@ import argparse
 
 
 class newConfig:
-	batch_size = 64
+	batch_size = 4
 	hpo_size = 10000
 	comp_size = 400
 	vocab_size = 50000
 	stemmed_vocab_size = 50000
-	hidden_size = 400
+	hidden_size = 10
 	word_embed_size = 100
 	num_layers = 1
 	max_sequence_length = 22
@@ -46,7 +46,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 	report_len = 5
 	while True:
 		batch = rd.read_batch(newConfig.batch_size, newConfig.comp_size)
-		if ii == 20 or batch == None:
+		if ii == 10 or batch == None:
 			break
 		batch_feed = {model.input_sequence : batch['seq'], model.input_stemmed_sequence : batch['stem_seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
 		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
@@ -125,7 +125,7 @@ def main():
 		hit, total = ant.find_accuracy(training_samples, 5)
 		print "Accuracy on training set ::", float(hit)/total
 
-		saver.save(sess, args.repdir+'/training.ckpt')
+#		saver.save(sess, args.repdir+'/training.ckpt') ## TODO
 
 if __name__ == "__main__":
 	main()
