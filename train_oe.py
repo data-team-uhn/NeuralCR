@@ -6,12 +6,12 @@ import argparse
 
 
 class newConfig:
-	batch_size = 4
+	batch_size = 64
 	hpo_size = 10000
 	comp_size = 400
 	vocab_size = 50000
 	stemmed_vocab_size = 50000
-	hidden_size = 10
+	hidden_size = 600
 	word_embed_size = 100
 	num_layers = 1
 	max_sequence_length = 22
@@ -43,7 +43,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 
 	ii = 0
 	loss = 0
-	report_len = 5
+	report_len = 20
 	while True:
 		batch = rd.read_batch(newConfig.batch_size, newConfig.comp_size)
 		if ii == 10000000 or batch == None:
