@@ -24,7 +24,7 @@ class NCRModel():
 		cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 		mixed_input = [(v+u)/2.0 for v,u in zip(inputs, stemmed_inputs)]
 
-		concat_input = [tf.pack([v,u],2) for v,u in zip(inputs, stemmed_inputs)]
+		concat_input = [tf.pack([v,u], axis=2) for v,u in zip(inputs, stemmed_inputs)]
 		a_weight = _weight_variable("q_weights", shape = [1, self.config.word_embed_size,1])
 		logits =  [tf.nn.tanh(tf.reduce_sum(v * a_weight, [1])) for v in concat_input]
 		alphas = [tf.nn.softmax(logit) for logit in logits]
