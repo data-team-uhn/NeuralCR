@@ -37,8 +37,9 @@ class NCRModel():
 		mixed_input_by_ = [(v+u)/2.0 for v,u in zip(inputs, stemmed_inputs)]
 		'''
 		##
+		return tf.nn.rnn(cell, stemmed_inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		#return tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
-		return tf.nn.rnn(cell, mixed_input, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		#return tf.nn.rnn(cell, mixed_input, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		#return tf.nn.rnn(cell, (inputs+stemmed_inputs)/2.0, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 
 	def apply_rnn_bidir(self, inputs):
