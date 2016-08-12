@@ -24,12 +24,12 @@ class NCRModel():
 		cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 		mixed_input = [(v+u)/2.0 for v,u in zip(inputs, stemmed_inputs)]
 
-		'''
-		v_weight = _weight_variable("v_weights", shape = [1, self.config.word_embed_size])
-		u_weight = _weight_variable("u_weights", shape = [1, self.config.word_embed_size])
-		logits = 
-		alphas = tf.nn.softmax(tf.matmul(v, v_weight) + tf.matmul(u, u_weight))
-		'''
+		concat_input = [tf.pack([v,u],2) for v,u in zip(inputs, stemmed_inputs)]
+		a_weight = _weight_variable("q_weights", shape = [1, self.config.word_embed_size,1])
+		logits =  [tf.nn.tanh(tf.reduce_sum(v * a_weight, [1])) for v in concat_input]
+		alphas = [tf.nn.softmax(logit) for logit in logits]
+
+		mixed_input = [tf.reduce_sum(inp*tf.expand_dims(alphas[i],1), [2]) for i,inp in enumerate(concat_input)]
 
 		##
 		'''
@@ -37,9 +37,9 @@ class NCRModel():
 		mixed_input_by_ = [(v+u)/2.0 for v,u in zip(inputs, stemmed_inputs)]
 		'''
 		##
-		return tf.nn.rnn(cell, stemmed_inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+#		return tf.nn.rnn(cell, stemmed_inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		#return tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
-		#return tf.nn.rnn(cell, mixed_input, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
+		return tf.nn.rnn(cell, mixed_input, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 		#return tf.nn.rnn(cell, (inputs+stemmed_inputs)/2.0, dtype=tf.float32, sequence_length=self.input_sequence_lengths)
 
 	def apply_rnn_bidir(self, inputs):
