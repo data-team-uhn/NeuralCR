@@ -23,10 +23,13 @@ class NCRModel():
 	def apply_rnn(self, inputs, stemmed_inputs):
 		cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 		mixed_input = [(v+u)/2.0 for v,u in zip(inputs, stemmed_inputs)]
+
+		'''
 		v_weight = _weight_variable("v_weights", shape = [1, self.config.word_embed_size])
 		u_weight = _weight_variable("u_weights", shape = [1, self.config.word_embed_size])
 		logits = 
 		alphas = tf.nn.softmax(tf.matmul(v, v_weight) + tf.matmul(u, u_weight))
+		'''
 
 		##
 		'''
