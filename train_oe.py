@@ -11,7 +11,7 @@ class newConfig:
 	comp_size = 400
 	vocab_size = 50000
 	stemmed_vocab_size = 50000
-	hidden_size = 600
+	hidden_size = 300
 	word_embed_size = 100
 	num_layers = 1
 	max_sequence_length = 22
@@ -25,19 +25,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 	'''
 	batch = rd.read_batch(50, newConfig.comp_size)
 	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]}
-	#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
-	#print sess.run(model.distances, feed_dict = batch_feed)[0].shape
-	print "hello!"
-	print sess.run(model.r_difs, feed_dict = batch_feed).shape
-	print "bye!"
-	print sess.run(model.p2c, feed_dict = batch_feed).shape
-	print sess.run(model.c2c_neg, feed_dict = batch_feed).shape
-	print sess.run(model.c2c_pos, feed_dict = batch_feed).shape
 	print sess.run(model.new_loss, feed_dict = batch_feed).shape
-	exit()
-	print sess.run(model.densed_outputs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
-	print sess.run(model.diffs, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]})[0].shape
-	print sess.run(model.new_loss, feed_dict = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]}).shape
 	exit()
 	'''
 
@@ -49,8 +37,6 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 		if ii == 10000000 or batch == None:
 			break
 		batch_feed = {model.input_sequence : batch['seq'], model.input_stemmed_sequence : batch['stem_seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
-		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
-		#batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_comp:batch[3], model.input_comp_mask:batch[4]}
 
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
 		loss += step_loss
@@ -109,7 +95,7 @@ def main():
 	with open(args.repdir+"/test_results.txt","w") as testResultFile:
 		testResultFile.write("")
 
-	for epoch in range(100):
+	for epoch in range(30):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -121,11 +107,13 @@ def main():
 		print "Accuracy on test set ::", float(hit)/total
 		with open(args.repdir+"/test_results.txt","a") as testResultFile:
 			testResultFile.write(str(float(hit)/total)+"\n")
-
+		
+		'''
 		hit, total = ant.find_accuracy(training_samples, 5)
 		print "Accuracy on training set ::", float(hit)/total
+		'''
 
-#		saver.save(sess, args.repdir+'/training.ckpt') ## TODO
+		saver.save(sess, args.repdir+'/training.ckpt') ## TODO
 
 if __name__ == "__main__":
 	main()

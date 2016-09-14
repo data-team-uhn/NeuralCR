@@ -42,7 +42,23 @@ class NeuralAnnotator:
 					break
 			results.append(tmp_res)
 		return results
-	
+	def get_hp_id_comp_phrase(self, querry, count=5):
+		inp = self.rd.create_test_sample(querry)
+		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_stemmed_sequence : inp['stem_seq'], self.model.input_sequence_lengths: inp['seq_len']}
+		res_querry = self.sess.run(self.querry_distances_phrases, feed_dict = querry_dict)
+		results=[]
+		for s in range(len(querry)):
+			indecies_querry = np.argsort(res_querry[s,:])
+			tmp_res = []
+			for i in indecies_querry:
+				res_item = (self.rd.concepts[self.rd.name2conceptid.values()[i]],res_querry[s,i])
+				if res_item[0] not in [x[0] for x in tmp_res]:
+					tmp_res.append(res_item)
+				if len(tmp_res)>=count:
+					break
+			results.append(tmp_res)
+		return results
+
 	def find_accuracy(self, samples, top_size):
 		header = 0
 		batch_size = 64
@@ -53,7 +69,8 @@ class NeuralAnnotator:
 		while header < len(samples):
 			batch = {x:samples[x] for x in samples.keys()[header:min(header+batch_size, len(samples))]}
 			header += batch_size
-			results = self.get_hp_id(batch.keys(),top_size)
+			results = self.get_hp_id_comp_phrase(batch.keys(),top_size)
+			#results = self.get_hp_id(batch.keys(),top_size)
 			for i,s in enumerate(batch):
 				hashit = False
 				for attempt,res in enumerate(results[i]):
@@ -81,6 +98,21 @@ class NeuralAnnotator:
 		self.querry_distances = self.model.get_querry_dis()
 		self.verbose = False
 
+		print "hello1"
+		inp = self.rd.create_test_sample(self.rd.name2conceptid.keys())
+		print "hello2"
+		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_stemmed_sequence : inp['stem_seq'], self.model.input_sequence_lengths: inp['seq_len']}
+		res_querry = self.sess.run(self.model.gru_state, feed_dict = querry_dict)
+		print res_querry
+		print res_querry.shape
+		print "hello3"
+
+		ref_vecs = tf.Variable(res_querry, False)
+		sess.run(tf.assign(ref_vecs, res_querry))
+
+		self.querry_distances_phrases = self.model.euclid_dis_cartesian(ref_vecs, self.model.gru_state)
+
+
 	
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
@@ -92,10 +124,18 @@ def main():
 	vectorFile = open("vectors.txt")
 	samplesFile = open("labeled_data")
 
-	rd = reader.Reader(oboFile, vectorFile)
+	stemmedVectorFile = open("stemmed_vectors.txt")
+	rd = reader.Reader(oboFile, vectorFile, stemmedVectorFile)
+	'''
+	print rd.concepts[9791]
+	print len(rd.name2conceptid)
+	exit()
+	'''
+	#rd = reader.Reader(oboFile, vectorFile)
 
 	newConfig = train_oe.newConfig
 	newConfig.vocab_size = rd.word2vec.shape[0]
+	newConfig.stemmed_vocab_size = rd.stemmed_word2vec.shape[0]
 	newConfig.word_embed_size = rd.word2vec.shape[1]
 	newConfig.max_sequence_length = rd.max_length
 	newConfig.hpo_size = len(rd.concept2id)
@@ -118,6 +158,7 @@ def main():
 	top_size = 5
 
 	hit, total = ant.find_accuracy(samples, top_size)
+	print hit, total, float(hit)/total
 	exit()
 	'''
 	hit, total = ant.find_accuracy(training_samples, top_size)
@@ -128,7 +169,7 @@ def main():
 	print ">>"
 	while True:
 		line = sys.stdin.readline().strip()
-		res = ant.get_hp_id([line], top_size)
+		res = ant.get_hp_id_comp_phrase([line], top_size)
 		for r in res:
 			for rid in r:
 				print rid[0], rd.names[rid[0]], rid[1]
