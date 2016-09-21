@@ -119,15 +119,16 @@ def main():
 	args = parser.parse_args()
 
 	textAnt = TextAnnotator(args.repdir)
-	for f in listdir(args.input_dir):
-		text = open(args.input_dir+"/"+f).read()
-		#print "------------------\n" + text + "\n\n\n\n"
-		results = textAnt.process_text(text, args.threshold, args.filter_overlap)
-		outf = open(args.output_dir+"/"+f, "w")
-		for res in results:
-			outf.write(res[2].replace(":","_")+"\n")
-			#			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]]
-	exit()
+
+	if args.input_dir is not None:
+		for f in listdir(args.input_dir):
+			text = open(args.input_dir+"/"+f).read()
+			#print "------------------\n" + text + "\n\n\n\n"
+			results = textAnt.process_text(text, args.threshold, args.filter_overlap)
+			outf = open(args.output_dir+"/"+f, "w")
+			for res in results:
+				outf.write(res[2].replace(":","_")+"\n")
+				#			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]]
 
 	if args.input is not None:
 		text = open(args.input).read()
