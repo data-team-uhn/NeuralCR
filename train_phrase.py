@@ -1,6 +1,5 @@
 import tensorflow as tf
 import argparse
-import gpu_lock
 import phraseConfig
 import phrase_model 
 import accuracy
@@ -84,7 +83,7 @@ def main():
 
 		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
 
-		hit, total = accuracy.find_accuracy(ant, samples, 5, False)
+		hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 		print "Accuracy on test set ::", float(hit)/total
 		with open(args.repdir+"/test_results.txt","a") as testResultFile:
 			testResultFile.write(str(float(hit)/total)+"\n")
@@ -98,12 +97,19 @@ def main():
 
 
 def get_gpu():
+	import gpu_lock
 	board = gpu_lock.obtain_lock_id() 
 	return str(board)
 
 if __name__ == "__main__":
-	board = get_gpu()
-	print board
-	with tf.device('/gpu:'+board):
+	parser = argparse.ArgumentParser(description='Hello!')
+	parser.add_argument('--gpu', action='store_true', default=False)
+	args = parser.parse_args()
+	if args.gpu:
+		board = get_gpu()
+		print board
+		with tf.device('/gpu:'+board):
+			main()
+	else:
 		main()
 
