@@ -34,11 +34,8 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 			loss = 0
 		ii += 1
 
-def main():
+def train(repdir):
 	print "Training..."
-	parser = argparse.ArgumentParser(description='Hello!')
-	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
-	args = parser.parse_args()
 
 	oboFile = open("data/hp.obo")
 	vectorFile = open("data/vectors.txt")
@@ -72,7 +69,7 @@ def main():
 		for s in rd.names[hpid]:
 			training_samples[s]=[hpid]
 
-	with open(args.repdir+"/test_results.txt","w") as testResultFile:
+	with open(repdir+"/test_results.txt","w") as testResultFile:
 		testResultFile.write("")
 
 	for epoch in range(30):
@@ -85,7 +82,7 @@ def main():
 
 		hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 		print "Accuracy on test set ::", float(hit)/total
-		with open(args.repdir+"/test_results.txt","a") as testResultFile:
+		with open(repdir+"/test_results.txt","a") as testResultFile:
 			testResultFile.write(str(float(hit)/total)+"\n")
 		
 		'''
@@ -93,7 +90,7 @@ def main():
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-		saver.save(sess, args.repdir+'/training.ckpt') ## TODO
+		saver.save(sess, repdir+'/training.ckpt') ## TODO
 
 
 def get_gpu():
@@ -101,15 +98,19 @@ def get_gpu():
 	board = gpu_lock.obtain_lock_id() 
 	return str(board)
 
-if __name__ == "__main__":
+def main():
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--gpu', action='store_true', default=False)
+	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 	if args.gpu:
 		board = get_gpu()
-		print board
+		print "using GPU:" + board
 		with tf.device('/gpu:'+board):
-			main()
+			train(args.repdir)
 	else:
-		main()
+		train(args.repdir)
+
+if __name__ == "__main__":
+	main()
 
