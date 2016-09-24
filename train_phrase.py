@@ -90,7 +90,7 @@ def train(repdir):
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-		saver.save(sess, repdir+'/training.ckpt') ## TODO
+	saver.save(sess, repdir+'/training.ckpt') ## TODO
 
 
 def get_gpu():
@@ -105,11 +105,12 @@ def main():
 	args = parser.parse_args()
 	if args.gpu:
 		board = get_gpu()
-		print "using GPU:" + board
+		print "Using GPU:" + board
 		with tf.device('/gpu:'+board):
 			train(args.repdir)
 	else:
 		train(args.repdir)
+
 
 if __name__ == "__main__":
 	main()
