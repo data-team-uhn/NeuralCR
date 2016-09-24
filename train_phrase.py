@@ -1,6 +1,6 @@
 import tensorflow as tf
 import argparse
-
+import gpu_lock
 import phraseConfig
 import phrase_model 
 import accuracy
@@ -54,7 +54,7 @@ def main():
 	lr = tf.Variable(0.01, trainable=False)
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
 
-	sess = tf.Session()
+	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	sess.run(tf.initialize_all_variables())
 	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
@@ -96,6 +96,14 @@ def main():
 
 		saver.save(sess, args.repdir+'/training.ckpt') ## TODO
 
+
+def get_gpu():
+	board = gpu_lock.obtain_lock_id() 
+	return str(board)
+
 if __name__ == "__main__":
-	main()
+	board = get_gpu()
+	print board
+	with tf.device('/gpu:'+board):
+		main()
 

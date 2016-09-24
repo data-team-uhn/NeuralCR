@@ -1,5 +1,5 @@
 class Config:
-	batch_size = 64
+	batch_size = 32
 	hidden_size = 300
 	alpha = 1
 
