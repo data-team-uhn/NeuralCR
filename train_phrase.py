@@ -1,25 +1,14 @@
 import tensorflow as tf
-from ordered_embeding import NCRModel
-import process_querry_ordered
-import reader
 import argparse
 
+import phraseConfig
+import phrase_model 
+import accuracy
+import reader
+import annotator
 
-class newConfig:
-	batch_size = 64
-	hpo_size = 10000
-	comp_size = 400
-	vocab_size = 50000
-	stemmed_vocab_size = 50000
-	hidden_size = 300
-	word_embed_size = 100
-	num_layers = 1
-	max_sequence_length = 22
-	alpha = 1
-	beta = 1
-	last_state = True
 
-def run_epoch(sess, model, train_step, model_loss, rd, saver):
+def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 	rd.reset_counter()
 
 	'''
@@ -33,10 +22,10 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 	loss = 0
 	report_len = 20
 	while True:
-		batch = rd.read_batch(newConfig.batch_size, newConfig.comp_size)
+		batch = rd.read_batch(config.batch_size) #, config.comp_size)
 		if ii == 10000000 or batch == None:
 			break
-		batch_feed = {model.input_sequence : batch['seq'], model.input_stemmed_sequence : batch['stem_seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
 
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
 		loss += step_loss
@@ -47,27 +36,20 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver):
 		ii += 1
 
 def main():
-	print "train_oe"
+	print "Training..."
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 
-	oboFile = open("hp.obo")
-	vectorFile = open("vectors.txt")
-	stemmedVectorFile = open("stemmed_vectors.txt")
+	oboFile = open("data/hp.obo")
+	vectorFile = open("data/vectors.txt")
 
-	rd = reader.Reader(oboFile, vectorFile, stemmedVectorFile)
-#	rd.init_pmc_data(open('pmc_samples.p'),open('pmc_id2text.p'), open('pmc_labels.p'))
-#	rd.init_wiki_data(open('wiki-samples.p'))
+	rd = reader.Reader(oboFile, vectorFile)
+	config = phraseConfig.Config
+	config.update_with_reader(rd)
 	
-	newConfig.vocab_size = rd.word2vec.shape[0]
-	newConfig.stemmed_vocab_size = rd.stemmed_word2vec.shape[0]
-	newConfig.word_embed_size = rd.word2vec.shape[1]
-	newConfig.max_sequence_length = rd.max_length
-	newConfig.hpo_size = len(rd.concept2id)
-
-	model = NCRModel(newConfig)
-	model_loss = model.get_loss()
+	model = phrase_model.NCRModel(config, training=True)
+	model_loss = model.loss
 
 	lr = tf.Variable(0.01, trainable=False)
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
@@ -75,7 +57,6 @@ def main():
 	sess = tf.Session()
 	sess.run(tf.initialize_all_variables())
 	sess.run(tf.assign(model.word_embedding, rd.word2vec))
-	sess.run(tf.assign(model.stemmed_word_embedding, rd.stemmed_word2vec))
 	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	
 	saver = tf.train.Saver()
@@ -83,9 +64,9 @@ def main():
 	lr_init = 0.01
 	lr_decay = 0.8
 
-	samplesFile = open("labeled_data")
-	ant =process_querry_ordered.NeuralAnnotator(model, rd, sess)
-	samples = process_querry_ordered.prepare_samples(rd, samplesFile)
+	samplesFile = open("data/labeled_data")
+	ant = annotator.NeuralPhraseAnnotator(model, rd, sess, True)
+	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
 
 	training_samples = {}
 	for hpid in rd.names:
@@ -101,9 +82,9 @@ def main():
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
-		run_epoch(sess, model, train_step, model_loss, rd, saver)
+		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
 
-		hit, total = ant.find_accuracy(samples, 5)
+		hit, total = accuracy.find_accuracy(ant, samples, 5, False)
 		print "Accuracy on test set ::", float(hit)/total
 		with open(args.repdir+"/test_results.txt","a") as testResultFile:
 			testResultFile.write(str(float(hit)/total)+"\n")

@@ -104,15 +104,6 @@ class Reader:
 					self.word2id[w] = len(self.word2id)
 
 		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
-		if self.stemmed_word2vec is not None:
-			tokens = map(lambda word : word if max(map(ord,word))<128 else self.unkown_term, tokens) ## TODO
-			stemmed_tokens = map(nltk.stem.PorterStemmer().stem, tokens)
-			if add_words:
-				for w in stemmed_tokens:
-					if w not in self.stemmed_word2id:
-						self.stemmed_word2id[w] = len(self.stemmed_word2id)
-			stemmed_ids = np.array( [self.stemmed_word2id[w] if w in self.stemmed_word2id else self.stemmed_word2id[self.unkown_term] for w in stemmed_tokens] )
-			return ids, stemmed_ids
 
 		return ids, None
 
@@ -143,7 +134,7 @@ class Reader:
 
 
 
-	def __init__(self, oboFile, vectorFile, stemmed_vectorFile=None):
+	def __init__(self, oboFile, vectorFile):
 		## Create word to id
 		word_vectors=[]
 		self.word2id={}
@@ -153,20 +144,8 @@ class Reader:
 			self.word2id[tokens[0]] = i
 		self.word2vec = np.vstack(word_vectors)
 
-		stemmed_word_vectors=[]
-		self.stemmed_word2id={}
-		self.stemmed_word2vec = None
-		if stemmed_vectorFile != None:
-			for i,line in enumerate(stemmed_vectorFile):
-				tokens = line.strip().split(" ")
-				stemmed_word_vectors.append(np.array(map(float,tokens[1:])))
-				self.stemmed_word2id[tokens[0]] = i
-			self.stemmed_word2vec = np.vstack(stemmed_word_vectors)
-			print self.stemmed_word2vec.shape
-
 
 		initial_word2id_size = len(self.word2id)
-		initial_stemmed_word2id_size = len(self.stemmed_word2id)
 		## Create concept to id
 		self.names, self.kids, self.parents, self.top_nodes, self.real_id = read_oboFile(oboFile)
 
@@ -192,16 +171,13 @@ class Reader:
 			for name in self.names[c]:
 				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
 		self.word2id[self.unkown_term] = len(self.word2id)
-		self.stemmed_word2id[self.unkown_term] = len(self.stemmed_word2id)
 
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
-		self.stemmed_word2vec = np.vstack((self.stemmed_word2vec, np.zeros((len(self.stemmed_word2id) - initial_stemmed_word2id_size,self.stemmed_word2vec.shape[1]))))
 
 		self.pmc_has_init = False
 		self.wiki_has_init = False
 		self.reset_counter()
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
-		print self.max_length
 
 	def reset_wiki_reader(self):
 		self.wiki_samples = []
@@ -280,17 +256,14 @@ class Reader:
 
 	def create_test_sample(self, phrases):
 		seq = np.zeros((len(phrases), self.max_length), dtype = int)
-		stemmed_seq = np.zeros((len(phrases), self.max_length), dtype = int)
 		phrase_ids = [self.phrase2ids(phrase) for phrase in phrases]
 		seq_lengths = np.array([len(phrase[0]) for phrase in phrase_ids])
 		for i,s in enumerate(phrase_ids):
 			seq[i,:seq_lengths[i]] = s[0]
-			if s[1] is not None:
-				stemmed_seq[i,:seq_lengths[i]] = s[1]
-		return {'seq':seq, 'stem_seq':stemmed_seq, 'seq_len':seq_lengths}
+		return {'seq':seq, 'seq_len':seq_lengths}
 
 
-	def read_batch(self, batch_size, compare_size):
+	def read_batch(self, batch_size):#, compare_size):
 		if self.counter >= len(self.mixed_samples):
 			return None
 		ending = min(len(self.mixed_samples), self.counter + batch_size)
@@ -298,11 +271,10 @@ class Reader:
 
 		sequence_lengths = np.array([len(s[0][0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
-		stemmed_sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
-		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
-		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
+#		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
+#		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		for i,s in enumerate(raw_batch):
-			sequences[i,:sequence_lengths[i]], stemmed_sequences[i,:sequence_lengths[i]] = s[0]
+			sequences[i,:sequence_lengths[i]], _ = s[0]
 			ancestrs = set()
 			all_kids = set()
 			for hit in s[1]:
@@ -313,28 +285,27 @@ class Reader:
 			all_positives = ancestrs
 			selected_positives = ancestrs
 
-			selected_kids = random.sample(all_kids - all_positives, min(compare_size - len(selected_positives), len(all_kids-all_positives)))
+#			selected_kids = random.sample(all_kids - all_positives, min(compare_size - len(selected_positives), len(all_kids-all_positives)))
 
-			tmp_comp = list(selected_positives) + list(selected_kids)
-			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp)- all_positives, compare_size-len(tmp_comp)))
+#			tmp_comp = list(selected_positives) + list(selected_kids)
+#			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp)- all_positives, compare_size-len(tmp_comp)))
 
-			tmp_comp_mask = [1]*len(selected_positives) + [0]*(compare_size-len(selected_positives))
+#			tmp_comp_mask = [1]*len(selected_positives) + [0]*(compare_size-len(selected_positives))
 
-			comparables[i,:] = np.array(tmp_comp)
-			comparables_mask[i,:] = np.array(tmp_comp_mask)
+#			comparables[i,:] = np.array(tmp_comp)
+#			comparables_mask[i,:] = np.array(tmp_comp_mask)
 
 		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
 
 		self.counter = ending
 
-		return {'seq':sequences, 'stem_seq':stemmed_sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids, 'comparables':comparables, 'comparables_mask':comparables_mask}
+		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 def main():
 	oboFile=open("hp.obo")
 	vectorFile=open("vectors.txt")
-	stemmed_vectorFile=open("stemmed_vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
-	reader = Reader(oboFile, vectorFile, stemmed_vectorFile)
+	reader = Reader(oboFile, vectorFile)
 	batch = reader.read_batch(5, 300)
 	print batch
 	exit()
