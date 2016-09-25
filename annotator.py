@@ -61,7 +61,7 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False):
 
 	model = phrase_model.NCRModel(config)
 
-	sess = tf.Session()
+	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	saver = tf.train.Saver()
 	saver.restore(sess, repdir + '/training.ckpt')
 

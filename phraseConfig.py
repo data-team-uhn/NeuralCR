@@ -1,6 +1,6 @@
 class Config:
-	batch_size = 32
-	hidden_size = 300
+	batch_size = 64
+	hidden_size = 400
 	alpha = 1
 
 	@staticmethod

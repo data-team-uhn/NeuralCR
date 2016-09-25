@@ -5,6 +5,7 @@ import phrase_model
 import accuracy
 import reader
 import annotator
+import gpu_access
 
 
 def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
@@ -61,7 +62,7 @@ def train(repdir):
 	lr_decay = 0.8
 
 	samplesFile = open("data/labeled_data")
-	ant = annotator.NeuralPhraseAnnotator(model, rd, sess, True)
+	ant = annotator.NeuralPhraseAnnotator(model, rd, sess, False)
 	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
 
 	training_samples = {}
@@ -72,7 +73,7 @@ def train(repdir):
 	with open(repdir+"/test_results.txt","w") as testResultFile:
 		testResultFile.write("")
 
-	for epoch in range(30):
+	for epoch in range(20):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -93,19 +94,13 @@ def train(repdir):
 	saver.save(sess, repdir+'/training.ckpt') ## TODO
 
 
-def get_gpu():
-	import gpu_lock
-	board = gpu_lock.obtain_lock_id() 
-	return str(board)
-
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--gpu', action='store_true', default=False)
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 	if args.gpu:
-		board = get_gpu()
-		print "Using GPU:" + board
+		board = gpu_access.get_gpu()
 		with tf.device('/gpu:'+board):
 			train(args.repdir)
 	else:

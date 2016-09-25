@@ -1,5 +1,4 @@
 import annotator
-
 import tensorflow as tf
 import argparse
 import sys
@@ -8,6 +7,7 @@ import json
 import cPickle as pickle
 from os import listdir
 from blist import sortedlist
+import gpu_access
 
 class TextAnnotator:
 
@@ -20,7 +20,8 @@ class TextAnnotator:
 		return results
 
 	def process_phrase(self, phrases):
-		ans_ncr = self.ant.get_hp_id(phrases, count=1)
+		with tf.device('/gpu:'+self.board):
+			ans_ncr = self.ant.get_hp_id(phrases, count=1)
 		return ans_ncr
 
 	def process_sent(self, sent, threshold, filter_overlap=False):
@@ -71,7 +72,9 @@ class TextAnnotator:
 		return final_results
 
 	def __init__(self, repdir, datadir=None):
+		self.board = gpu_access.get_gpu()
 		self.ant = annotator.create_annotator(repdir, datadir, True)
+
 
 
 def main():
@@ -106,7 +109,7 @@ def main():
 			text = sys.stdin.readline()
 		if text == "":
 			break
-
+		
 		results = textAnt.process_text(text, args.threshold, args.filter_overlap)
 		for res in results:
 			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", textAnt.ant.rd.names[res[2]]
