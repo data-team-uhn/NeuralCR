@@ -3,7 +3,6 @@ import random
 import numpy as np
 import cPickle as pickle
 from itertools import product
-import nltk
 
 total=0
 marked={}

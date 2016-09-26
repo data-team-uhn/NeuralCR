@@ -8,20 +8,21 @@ import cPickle as pickle
 from os import listdir
 from blist import sortedlist
 import gpu_access
+import time
 
 class TextAnnotator:
 
-	def phenotips(self, phrases):
+	def phenotips(self, phrases, count=1):
 		results = []
 		for phrase in phrases:
 			resp = requests.get('https://phenotips.org/get/PhenoTips/SolrService?vocabulary=hpo&q='+phrase.replace(" ","+")).json()
-			ans = resp['rows'][:1][0]
-			results.append([(ans[u'id'],1.0/ans[u'score'])])
+			ans = [(self.ant.rd.real_id[str(x[u'id'])],x[u'score']) if str(x[u'id']) in self.ant.rd.real_id else (x[u'id'],x[u'score']) for x in resp['rows'][:count]]
+			results.append(ans)
 		return results
 
-	def process_phrase(self, phrases):
+	def process_phrase(self, phrases, count=1):
 		with tf.device('/gpu:'+self.board):
-			ans_ncr = self.ant.get_hp_id(phrases, count=1)
+			ans_ncr = self.ant.get_hp_id(phrases, count)
 		return ans_ncr
 
 	def process_sent(self, sent, threshold, filter_overlap=False):
@@ -30,12 +31,12 @@ class TextAnnotator:
 		for i,w in enumerate(tokens):
 			phrase = ""
 			candidates = []
-			for r in range(5):
+			for r in range(7):
 				if i+r >= len(tokens):
 					break
 				phrase += " " + tokens[i+r]
 				candidates.append(phrase.strip())
-			hp_ids = self.process_phrase(candidates)
+			hp_ids = self.process_phrase(candidates, 1)
 			for i in range(len(hp_ids)):
 				if hp_ids[i][0][1] < threshold:
 					if (hp_ids[i][0][0] not in ret) or (hp_ids[i][0][1]<ret[hp_ids[i][0][0]][0]):
@@ -73,7 +74,8 @@ class TextAnnotator:
 
 	def __init__(self, repdir, datadir=None):
 		self.board = gpu_access.get_gpu()
-		self.ant = annotator.create_annotator(repdir, datadir, True)
+		with tf.device('/gpu:'+self.board):
+			self.ant = annotator.create_annotator(repdir, datadir, True)
 
 
 
@@ -100,19 +102,23 @@ def main():
 			for res in results:
 				outf.write(res[2].replace(":","_")+"\n")
 				#			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]]
+		return
 
 	if args.input is not None:
 		text = open(args.input).read()
 
 	while True:
 		if args.input is None:
+			print "Enter querry:"
 			text = sys.stdin.readline()
 		if text == "":
 			break
-		
+		start_time = time.time()
 		results = textAnt.process_text(text, args.threshold, args.filter_overlap)
+		end_time = time.time()
 		for res in results:
 			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", textAnt.ant.rd.names[res[2]]
+		print "Time elapsed: "+ ("%.2f" % (end_time-start_time)) + "s"
 		if args.input is not None:
 			break
 

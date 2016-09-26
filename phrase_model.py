@@ -22,10 +22,6 @@ class NCRModel():
 		return tf.reduce_sum(tf.pow(tf.maximum(dif, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=1) 
 
 	def order_dis_cartesian(self, v, u):
-		'''
-		dif = tf.expand_dims(u,1) - tf.expand_dims(v,0)
-		return tf.reduce_sum(tf.pow(tf.maximum(dif, tf.constant(0.0)), tf.constant(2.0)), reduction_indices=2) 
-		'''
 		return tf.transpose(tf.map_fn(lambda x: self.order_dis(x,u), v, swap_memory=True))
 
 	def euclid_dis(self, v ,u):
@@ -33,9 +29,6 @@ class NCRModel():
 
 	def euclid_dis_cartesian(self, v, u):
 		return tf.reduce_sum(u*u, 1, keep_dims=True) + tf.expand_dims(tf.reduce_sum(v*v, 1), 0) - 2 * tf.matmul(u,v, transpose_b=True) 
-#		dif = tf.expand_dims(u,1) - tf.expand_dims(v,0)
-#		return tf.reduce_sum(tf.pow(dif, 2.0), 2)
-
 
 	#########################
 	##### Loss Function #####
