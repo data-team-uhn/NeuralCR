@@ -95,7 +95,10 @@ def read_oboFile(oboFile):
 class Reader:
 
 	def phrase2ids(self, phrase, add_words=False):
+		#		if len(tokenize(phrase)) > self.max_length:
+		#	print len(tokenize(phrase))
 		tokens = tokenize(phrase)
+		tokens = tokens[:self.max_length-1]
 		tokens.append("<END-TOKEN>")
 		if add_words:
 			for w in tokens:
@@ -135,6 +138,7 @@ class Reader:
 
 	def __init__(self, oboFile, vectorFile):
 		## Create word to id
+		self.max_length = 50 #max([len(s[0]) for s in self.samples])
 		word_vectors=[]
 		self.word2id={}
 		for i,line in enumerate(vectorFile):
@@ -151,7 +155,6 @@ class Reader:
 		self.concepts = [c for c in self.names.keys()]
 		self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))
 		self.concept_id_list = set(self.concept2id.values())
-		self.top_nodes_id_list = set([self.concept2id[x] for x in self.top_nodes])
 		self.kids_id = {self.concept2id[c]:set([self.concept2id[cc] for cc in self.kids[c]]) for c in self.kids}
 		self.unkown_term = "<UNKNOWN>"
 
@@ -176,7 +179,6 @@ class Reader:
 		self.pmc_has_init = False
 		self.wiki_has_init = False
 		self.reset_counter()
-		self.max_length = 50 #max([len(s[0]) for s in self.samples])
 
 	def reset_wiki_reader(self):
 		self.wiki_samples = []
@@ -186,7 +188,7 @@ class Reader:
 		shuffle(self.wiki_raws)
 		for i in range(10000):
 			tokens = self.phrase2ids(self.wiki_raws[i])
-			if len(tokens)>=50:
+			if len(tokens[0])>=self.max_length:
 				continue
 			self.wiki_samples.append((tokens, []))
 
@@ -204,7 +206,7 @@ class Reader:
 
 						text = self.pmc_id2text[textid]
 						tokens = self.phrase2ids(text)
-						if len(tokens)>=50:
+						if len(tokens[0])>=self.max_length:
 							continue
 						self.pmc_samples.append((tokens, [self.name2conceptid[x] for x in self.textid2labels[textid]]))
 
@@ -249,6 +251,7 @@ class Reader:
 	def reset_counter(self):
 		self.reset_pmc_reader()
 		self.reset_wiki_reader()
+#		self.mixed_samples =  self.pmc_samples
 		self.mixed_samples = self.samples + self.pmc_samples + self.wiki_samples
 		shuffle(self.mixed_samples)
 		self.counter = 0
@@ -301,28 +304,26 @@ class Reader:
 		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 def main():
-	oboFile=open("hp.obo")
-	vectorFile=open("vectors.txt")
+	oboFile=open("data/hp.obo")
+	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
-	batch = reader.read_batch(5, 300)
-	print batch
-	exit()
-	reader.reset_counter()
-	batch = reader.read_batch(5, 300)
-	print batch
-	return
-	print len(reader.top_nodes_id_list)
-	reader.init_pmc_data(open('pmc_samples.p'),open('pmc_id2text.p'), open('pmc_labels.p'))
-	reader.init_wiki_data(open('wiki-samples.p'))
+	#batch = reader.read_batch(5)
+	#print batch
+	#reader.reset_counter()
+
+	reader.init_pmc_data(open('data/pmc_samples.p'),open('data/pmc_id2text.p'), open('data/pmc_labels.p'))
+	reader.init_wiki_data(open('data/wiki-samples.p'))
 	print "inited"
 	reader.reset_counter()
+	'''
 	while True:
 		batch = reader.read_batch(128, 300)
 		if batch == None:
 			exit()
+	'''
 
-	batch = reader.read_batch(1, 300)
+	batch = reader.read_batch(4)
 	print batch
 
 	print len(reader.wiki_raws)

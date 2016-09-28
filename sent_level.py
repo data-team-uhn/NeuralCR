@@ -9,6 +9,7 @@ from os import listdir
 from blist import sortedlist
 import gpu_access
 import time
+import sent_accuracy
 
 class TextAnnotator:
 
@@ -31,7 +32,7 @@ class TextAnnotator:
 		for i,w in enumerate(tokens):
 			phrase = ""
 			candidates = []
-			for r in range(7):
+			for r in range(5):
 				if i+r >= len(tokens):
 					break
 				phrase += " " + tokens[i+r]
@@ -57,7 +58,7 @@ class TextAnnotator:
 		else:
 			return results
 
-	def process_text(self, text, threshold, filter_overlap=False):
+	def process_text(self, text, threshold=0.5, filter_overlap=False):
 		sents = text.split(".")
 		ans = []
 		total_chars=0
@@ -92,6 +93,8 @@ def main():
 	sys.stderr.write("Initializing NCR...\n")
 	textAnt = TextAnnotator(args.repdir, "data/")
 	sys.stderr.write("Done.\n")
+	sent_accuracy.find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )], '../data/', textAnt.ant.rd)
+	exit()
 
 	if args.input_dir is not None:
 		for f in listdir(args.input_dir):
