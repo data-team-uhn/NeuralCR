@@ -32,7 +32,7 @@ class TextAnnotator:
 		for i,w in enumerate(tokens):
 			phrase = ""
 			candidates = []
-			for r in range(5):
+			for r in range(7):
 				if i+r >= len(tokens):
 					break
 				phrase += " " + tokens[i+r]
@@ -49,6 +49,18 @@ class TextAnnotator:
 		results = sorted(results, key=lambda x : (x[3], x[0]-x[1]))
 
 		if filter_overlap:
+			'''
+			filtered_results = []
+			for res in results:
+				bad = False
+				for oth in filtered_results:
+					if not (res[1] <= oth[0] or oth[1] <=res[0]):
+						bad = True
+						break
+				if not bad:
+					filtered_results.append(res)
+			return list(filtered_results)
+			'''
 			filtered_results = sortedlist([], key = lambda x : x[0])
 			for res in results:
 				match = filtered_results.bisect(res)

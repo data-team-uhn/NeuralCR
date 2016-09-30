@@ -37,6 +37,10 @@ class NeuralSentenceAnnotator:
 		
 		return results
 
+	def process_single_sent(self, sent, threshold=1.0):
+		results = self.get_hp_id([sent], threshold)
+		return results
+
 	def process_text(self, text, threshold=1.0):
 		sents = text.split(".")
 		results = self.get_hp_id(sents, threshold)
@@ -102,7 +106,8 @@ def main():
 	board = gpu_access.get_gpu()
 	with tf.device('/gpu:'+board):
 		ant = create_annotator(args.repdir, "data/")
-		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 0.8) for x in sent_res], '../data/', ant.rd)
+		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_single_sent(text, 1.0) for x in sent_res], "labeled_sentences.p")
+		#sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 0.8) for x in sent_res], "labeled_sentences.p")
 
 
 if __name__ == '__main__':
