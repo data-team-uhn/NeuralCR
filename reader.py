@@ -7,26 +7,6 @@ from itertools import product
 total=0
 marked={}
 
-def bfs(start, kids, upper):
-	que=[start]
-	d={}
-	d[start]=0
-	visited=set()
-	visited.add(start)
-	tail=0
-	local=[]
-	while tail < len(que):
-		v=que[tail]
-		if d[v] >= upper:
-			break
-		for u in kids[v]:
-			if u not in visited:
-				d[u]=d[v]+1
-				que.append(u)
-				visited.add(u)
-		tail+=1
-	return visited
-
 def is_number(s):
     try:
         float(s)
@@ -44,7 +24,7 @@ def dfs(c, kids, mark):
 		if kid not in mark:
 			dfs(kid, kids, mark)
 
-def read_oboFile(oboFile):
+def read_oboFile(oboFile, topid=None):
 	names={}
 	kids={}
 	parents={}
@@ -68,7 +48,7 @@ def read_oboFile(oboFile):
 			names[hp_id].append( ' '.join(tokens[1:last_index+ 1]).strip("\"") )
 		if tokens[0] == "alt_id:":
 			real_id[tokens[1]] = hp_id
-
+	
 	oboFile.seek(0)
 	while True:
 		line=oboFile.readline()
@@ -82,14 +62,19 @@ def read_oboFile(oboFile):
 			kids[tokens[1]].append(hp_id)
 			parents[hp_id].append(tokens[1])
 	mark=set()
-	dfs("HP:0000118", kids, mark)
-	top_nodes = bfs("HP:0000118", kids, 2)
+	dfs(topid, kids, mark)
 	names = {c:names[c] for c in mark}
 	parents = {c:parents[c] for c in mark}
 	kids = {c:kids[c] for c in mark}
 	for c in parents:
 		parents[c]=[p for p in parents[c] if p in mark]
-	return names, kids, parents, top_nodes, real_id
+	total_names = []
+	for c in names:
+		for name in names[c]:
+			total_names.append(name)
+			#print name
+#	print len(total_names)
+	return names, kids, parents, real_id
 
 
 class Reader:
@@ -122,62 +107,79 @@ class Reader:
 
 		return self.ancestry_mask[cid,:]
 
-	def _update_ancestry_list(self,c):
-		cid = self.concept2id[c]
-		if cid in self.ancestry_list:
-			return self.ancestry_list[cid]
 
-		self.ancestry_list[cid] = set([cid])
+	def init_uberon_list(self):
+		self.uberon_has_init = True
+		oboFile=open("data/uberon.obo")
+		names, kids, parents, real_id = read_oboFile(oboFile, "UBERON:0010000")
+		self.uberon_tokens = []
+		for c in names:
+			for name in names[c]:
+				tokens = self.phrase2ids(name)
+				if len(tokens[0])> 3:
+					continue
+				self.uberon_tokens.append((tokens, [self.concept_NULL]))
 
-		for p in self.parents[c]:
-			self.ancestry_list[cid].update(self._update_ancestry_list(p))
+	def reset_uberon_reader(self):
+		self.uberon_samples = []
+		if not self.uberon_has_init:
+			return
+		shuffle(self.uberon_tokens)
+		self.uberon_samples = self.uberon_tokens[:10000]
 
-		return self.ancestry_list[cid]
-
-
-
-	def __init__(self, oboFile, vectorFile):
+	def __init__(self, oboFile, vectorFile, addNull=False):
 		## Create word to id
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
+
+		###################### Words ######################
 		word_vectors=[]
 		self.word2id={}
 		for i,line in enumerate(vectorFile):
 			tokens = line.strip().split(" ")
 			word_vectors.append(np.array(map(float,tokens[1:])))
 			self.word2id[tokens[0]] = i
+		#	if i == 100000:
+		#		break
 		self.word2vec = np.vstack(word_vectors)
-
-
 		initial_word2id_size = len(self.word2id)
-		## Create concept to id
-		self.names, self.kids, self.parents, self.top_nodes, self.real_id = read_oboFile(oboFile)
+		###################################################
+
+
+		###################### Read HPO ######################
+		self.names, self.kids, self.parents, self.real_id = read_oboFile(oboFile, "HP:0000118")
 
 		self.concepts = [c for c in self.names.keys()]
+		if addNull:
+			self.concepts.append("<NULL>")
 		self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))
-		self.concept_id_list = set(self.concept2id.values())
-		self.kids_id = {self.concept2id[c]:set([self.concept2id[cc] for cc in self.kids[c]]) for c in self.kids}
-		self.unkown_term = "<UNKNOWN>"
+		if addNull:
+			self.concept_NULL = self.concept2id["<NULL>"]
 
+		self.unkown_term = "<UNKNOWN>"
 		self.name2conceptid = {}
 		for c in self.concepts:
+			if c=="<NULL>":
+				continue
 			for name in self.names[c]:
 				normalized_name = name.strip().lower()
 				self.name2conceptid[normalized_name] = self.concept2id[c]
 
-		self.ancestry_list = {}
 		self.ancestry_mask = np.zeros((len(self.concepts), len(self.concepts)))
 		self.samples = []
 		for c in self.concepts:
+			if c=="<NULL>":
+				continue
 			self._update_ancestry(c)
-			self._update_ancestry_list(c)
 			for name in self.names[c]:
 				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
-		self.word2id[self.unkown_term] = len(self.word2id)
 
+		self.word2id[self.unkown_term] = len(self.word2id)
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
+
 
 		self.pmc_has_init = False
 		self.wiki_has_init = False
+		self.uberon_has_init = False
 		self.reset_counter()
 
 	def reset_wiki_reader(self):
@@ -197,6 +199,8 @@ class Reader:
 		if not self.pmc_has_init:
 			return
 		for c in self.concepts:
+			if c=="<NULL>":
+				continue
 			for name in self.names[c]:
 				normalized_name = name.strip().lower()
 				if normalized_name in self.pmc_raws:
@@ -251,8 +255,9 @@ class Reader:
 	def reset_counter(self):
 		self.reset_pmc_reader()
 		self.reset_wiki_reader()
+		self.reset_uberon_reader()
 #		self.mixed_samples =  self.pmc_samples
-		self.mixed_samples = self.samples + self.pmc_samples + self.wiki_samples
+		self.mixed_samples = self.samples + self.pmc_samples + self.wiki_samples + self.uberon_samples
 		shuffle(self.mixed_samples)
 		self.counter = 0
 
@@ -273,30 +278,8 @@ class Reader:
 
 		sequence_lengths = np.array([len(s[0][0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
-#		comparables = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
-#		comparables_mask = np.zeros((min(batch_size, ending-self.counter), compare_size), dtype = int)
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]], _ = s[0]
-			ancestrs = set()
-			all_kids = set()
-			for hit in s[1]:
-				ancestrs.update(self.ancestry_list[hit])
-			for ancestr in ancestrs:
-				all_kids.update(self.kids_id[ancestr])
-
-			all_positives = ancestrs
-			selected_positives = ancestrs
-
-#			selected_kids = random.sample(all_kids - all_positives, min(compare_size - len(selected_positives), len(all_kids-all_positives)))
-
-#			tmp_comp = list(selected_positives) + list(selected_kids)
-#			tmp_comp += list(random.sample(self.concept_id_list - set(tmp_comp)- all_positives, compare_size-len(tmp_comp)))
-
-#			tmp_comp_mask = [1]*len(selected_positives) + [0]*(compare_size-len(selected_positives))
-
-#			comparables[i,:] = np.array(tmp_comp)
-#			comparables_mask[i,:] = np.array(tmp_comp_mask)
-
 		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
 
 		self.counter = ending
@@ -304,12 +287,20 @@ class Reader:
 		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 def main():
+	'''
+	oboFile=open("data/uberon.obo")
+	read_oboFile(oboFile, "UBERON:0010000")
+	return
+	'''
 	oboFile=open("data/hp.obo")
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
-	#batch = reader.read_batch(5)
-	#print batch
+	reader.init_uberon_list()
+	reader.reset_counter()
+	batch = reader.read_batch(10)
+	print batch
+	return
 	#reader.reset_counter()
 
 	reader.init_pmc_data(open('data/pmc_samples.p'),open('data/pmc_id2text.p'), open('data/pmc_labels.p'))

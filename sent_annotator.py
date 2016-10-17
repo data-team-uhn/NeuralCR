@@ -78,13 +78,13 @@ class NeuralSentenceAnnotator:
 			self.querry_distances = self.model.rnn_minpool_cartesian(self.model.get_HPO_embedding())
 			#self.querry_distances = self.model.euclid_dis_cartesian(self.model.get_HPO_embedding(), self.model.gru_state)
 
-def create_annotator(repdir, datadir=None, compWithPhrases = False):
+def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=False):
 	if datadir is None:
 		datadir = repdir
 	oboFile = open(datadir+"/hp.obo")
 	vectorFile = open(datadir+"/vectors.txt")
 
-	rd = reader.Reader(oboFile, vectorFile)
+	rd = reader.Reader(oboFile, vectorFile, addNull)
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 
@@ -96,17 +96,29 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False):
 
 	return NeuralSentenceAnnotator(model, rd, sess, compWithPhrases)
 
+class Sent_ant_wrapper:
+	def process_text(self, text, threshold = 1.0):
+		with tf.device('/gpu:'+self.board):
+			return self.ant.process_text(text, threshold)
+
+	def __init__(self, repdir, addNull=False):
+		self.board = gpu_access.get_gpu()
+		with tf.device('/gpu:'+self.board):
+			self.ant = create_annotator(repdir, "data/", addNull=addNull)		
+
 
 
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
+#	parser.add_argument('--repdir', help="The location where the checkpoints are stored, default is \'checkpoints/\'", default="sent_checkpoints_backup/")
 	parser.add_argument('--repdir', help="The location where the checkpoints are stored, default is \'checkpoints/\'", default="sent_checkpoints/")
 	args = parser.parse_args()
 	
 	board = gpu_access.get_gpu()
 	with tf.device('/gpu:'+board):
-		ant = create_annotator(args.repdir, "data/")
-		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_single_sent(text, 1.0) for x in sent_res], "labeled_sentences.p")
+		ant = create_annotator(args.repdir, "data/", addNull=True)
+#		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_single_sent(text, 1.0) for x in sent_res], "labeled_sentences.p", ant.rd)
+		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 1.0) for x in sent_res], "labeled_sentences.p", ant.rd)
 		#sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 0.8) for x in sent_res], "labeled_sentences.p")
 
 

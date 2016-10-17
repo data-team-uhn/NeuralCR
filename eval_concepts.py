@@ -5,6 +5,8 @@ import reader
 def parse_results(address, rd):
 	res={}
 	for f in os.listdir(address):
+		#		res[f]=set([rd.real_id[x.replace("_",":")] for x in open(address+"/"+f).read().strip().split("\n") if len(x)>0 and rd.real_id[x.replace("_",":")] in rd.concepts])
+		#res[f]=[rd.real_id[x.replace("_",":")] for x in open(address+"/"+f).read().strip().split("\n") if len(x)>0 and rd.real_id[x.replace("_",":")] in rd.concepts]
 		res[f]=[rd.real_id[x.replace("_",":")] for x in open(address+"/"+f).read().strip().split("\n") if len(x)>0]
 	return res
 

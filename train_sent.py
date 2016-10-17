@@ -44,7 +44,7 @@ def train(repdir):
 
 	print "Initializing Reader..."
 
-	rd = reader.Reader(oboFile, vectorFile)
+	rd = reader.Reader(oboFile, vectorFile, addNull=True)
 
 	print "Init pmc..."
 	rd.init_pmc_data(open('data/pmc_samples.p'),open('data/pmc_id2text.p'), open('data/pmc_labels.p'))
@@ -112,7 +112,8 @@ def train(repdir):
 		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
 		text = open('../data/text/1003450').read()
 		ant.process_text(text, 3.0)
-		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 1.0) for x in sent_res], '../data/', ant.rd)
+#		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 1.0) for x in sent_res], '../data/', ant.rd)
+		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 1.0) for x in sent_res], "labeled_sentences.p", ant.rd)
 		'''
 		hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 		print "Accuracy on test set ::", float(hit)/total

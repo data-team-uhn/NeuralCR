@@ -49,7 +49,12 @@ class NCRModel():
 		p2c_order_loss = self.order_dis(self.gru_state, input_HPO_embedding)
 		p2c_loss += p2c_order_loss
 		
+		NULL_concept_dis =  tf.transpose(self.order_dis_cartesian(self.gru_state, self.get_HPO_embedding()))
+		NULL_concept_loss = tf.reduce_sum(tf.maximum(0.0, self.config.alpha - NULL_concept_dis), 1)
+		self.loss = tf.reduce_mean(tf.select(tf.equal(self.input_hpo_id, self.config.concept_NULL), NULL_concept_loss, c2c_loss + p2c_loss))
+		'''
 		self.loss = tf.reduce_mean(c2c_loss + p2c_loss)
+		'''
 	
 
 	#############################

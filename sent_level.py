@@ -85,10 +85,10 @@ class TextAnnotator:
 		final_results = sorted(final_results, key=lambda x : x[0])
 		return final_results
 
-	def __init__(self, repdir, datadir=None):
+	def __init__(self, repdir, datadir=None, addNull=False):
 		self.board = gpu_access.get_gpu()
 		with tf.device('/gpu:'+self.board):
-			self.ant = annotator.create_annotator(repdir, datadir, True)
+			self.ant = annotator.create_annotator(repdir, datadir, True, addNull)
 
 
 

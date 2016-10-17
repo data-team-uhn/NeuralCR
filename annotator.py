@@ -49,13 +49,13 @@ class NeuralPhraseAnnotator:
 		else:
 			self.querry_distances = self.model.euclid_dis_cartesian(self.model.get_HPO_embedding(), self.model.gru_state)
 
-def create_annotator(repdir, datadir=None, compWithPhrases = False):
+def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=False):
 	if datadir is None:
 		datadir = repdir
 	oboFile = open(datadir+"/hp.obo")
 	vectorFile = open(datadir+"/vectors.txt")
 
-	rd = reader.Reader(oboFile, vectorFile)
+	rd = reader.Reader(oboFile, vectorFile, addNull)
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 

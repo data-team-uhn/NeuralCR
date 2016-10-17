@@ -42,6 +42,7 @@ def train(repdir):
 	vectorFile = open("data/vectors.txt")
 
 	rd = reader.Reader(oboFile, vectorFile)
+	rd.init_uberon_list()
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 	
