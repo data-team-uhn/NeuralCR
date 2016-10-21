@@ -3,6 +3,7 @@ import random
 import numpy as np
 import cPickle as pickle
 from itertools import product
+import h5py
 
 total=0
 marked={}
@@ -95,7 +96,7 @@ class Reader:
 
 		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
 
-		return ids, None
+		return ids #, None
 
 	def _update_ancestry(self, c):
 		cid = self.concept2id[c]
@@ -119,7 +120,7 @@ class Reader:
 		for c in names:
 			for name in names[c]:
 				tokens = self.phrase2ids(name)
-				if len(tokens[0])> 3:
+				if len(tokens)> 3:
 					continue
 				self.uberon_tokens.append((tokens, [self.concept_NULL]))
 
@@ -130,20 +131,31 @@ class Reader:
 		shuffle(self.uberon_tokens)
 		self.uberon_samples = self.uberon_tokens[:10000]
 
-	def __init__(self, oboFile, vectorFile, addNull=False):
+	def __init__(self, oboFile, vectorFile=None, addNull=False):
 		## Create word to id
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
 
 		###################### Words ######################
-		word_vectors=[]
-		self.word2id={}
-		for i,line in enumerate(vectorFile):
-			tokens = line.strip().split(" ")
-			word_vectors.append(np.array(map(float,tokens[1:])))
-			self.word2id[tokens[0]] = i
-		#	if i == 100000:
-		#		break
-		self.word2vec = np.vstack(word_vectors)
+		if vectorFile != None:
+			word_vectors=[]
+			self.word2id={}
+			for i,line in enumerate(vectorFile):
+				tokens = line.strip().split(" ")
+				word_vectors.append(np.array(map(float,tokens[1:])))
+				self.word2id[tokens[0]] = i
+			#	if i == 100000:
+			#		break
+			self.word2vec = np.vstack(word_vectors)
+
+			h5f = h5py.File('data/word_vectors.h5', 'w')
+			h5f.create_dataset('word_embed', data=self.word2vec)
+			pickle.dump(self.word2id, open('data/word2id.p', "wb"))
+			h5f.close()
+		else:
+			h5f = h5py.File('data/word_vectors.h5', 'r')
+			self.word2vec = np.array(h5f['word_embed'])
+			self.word2id = pickle.load(open('data/word2id.p','rb'))
+			h5f.close()
 		initial_word2id_size = len(self.word2id)
 		###################################################
 
@@ -176,6 +188,16 @@ class Reader:
 			for name in self.names[c]:
 				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
 
+		self.samples_by_concept = []
+		for i,c in enumerate(self.concepts):
+			tmp_sample = {}
+			raw_seq = [self.phrase2ids(name) for name in self.names[c]]
+			tmp_sample['seq_len'] = np.array([len(s) for s in raw_seq])
+			tmp_sample['seq'] = np.zeros((len(raw_seq), self.max_length), dtype = int)
+			for j,s in enumerate(raw_seq):
+				tmp_sample['seq'][j,:tmp_sample['seq_len'][j]] = s
+			self.samples_by_concept.append(tmp_sample)
+
 		self.word2id[self.unkown_term] = len(self.word2id)
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 
@@ -184,6 +206,7 @@ class Reader:
 		self.wiki_has_init = False
 		self.uberon_has_init = False
 		self.reset_counter()
+		self.reset_counter_by_concept()
 
 	def reset_wiki_reader(self):
 		self.wiki_samples = []
@@ -213,7 +236,7 @@ class Reader:
 
 						text = self.pmc_id2text[textid]
 						tokens = self.phrase2ids(text)
-						if len(tokens[0])>=self.max_length:
+						if len(tokens)>=self.max_length:
 							continue
 						self.pmc_samples.append((tokens, [self.name2conceptid[x] for x in self.textid2labels[textid]]))
 
@@ -255,6 +278,12 @@ class Reader:
 
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 		'''
+
+	def reset_counter_by_concept(self):
+		self.sample_indecies = range(len(self.concepts))
+		shuffle(self.sample_indecies)
+		self.counter_by_concept = 0
+
 	def reset_counter(self):
 		self.reset_pmc_reader()
 		self.reset_wiki_reader()
@@ -267,11 +296,24 @@ class Reader:
 	def create_test_sample(self, phrases):
 		seq = np.zeros((len(phrases), self.max_length), dtype = int)
 		phrase_ids = [self.phrase2ids(phrase) for phrase in phrases]
-		seq_lengths = np.array([len(phrase[0]) for phrase in phrase_ids])
+		seq_lengths = np.array([len(phrase) for phrase in phrase_ids])
 		for i,s in enumerate(phrase_ids):
 			seq[i,:seq_lengths[i]] = s[0]
 		return {'seq':seq, 'seq_len':seq_lengths}
 
+	def read_batch_by_concept(self, batch_size):#, compare_size):
+		if self.counter_by_concept >= len(self.sample_indecies):
+			return None
+		ending = min(len(self.sample_indecies), self.counter_by_concept + batch_size)
+		raw_hpo_ids = self.sample_indecies[self.counter_by_concept : ending]
+		hpo_ids = np.hstack([np.array([i]*self.samples_by_concept[i]['seq_len'].shape[0]) for i in raw_hpo_ids])
+
+		sequence_lengths = np.hstack([self.samples_by_concept[i]['seq_len'] for i in raw_hpo_ids])
+		sequences = np.vstack([self.samples_by_concept[i]['seq'] for i in raw_hpo_ids])
+
+		self.counter_by_concept = ending
+
+		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 	def read_batch(self, batch_size):#, compare_size):
 		if self.counter >= len(self.mixed_samples):
@@ -299,6 +341,13 @@ def main():
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
+	batch = reader.read_batch_by_concept(10)
+	print batch
+	print batch['seq'].shape
+	print batch['seq_len'].shape
+	print batch['hp_id'].shape
+
+	return
 	print reader.text_def["HP:0000118"]
 	return
 	reader.init_uberon_list()

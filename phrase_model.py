@@ -64,7 +64,7 @@ class NCRModel():
 		print "set loss"
 		## if type A exists
 		self.input_losses = self.get_loss(self.gru_state)
-		self.def_losses = self.get_loss(self.def_state)
+#		self.def_losses = self.get_loss(self.def_state)
 		return
 
 		'''

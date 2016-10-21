@@ -1,11 +1,21 @@
 import tensorflow as tf
 import phrase_model
 import phraseConfig
-import gpu_access
 import reader
 import argparse
 import h5py
 import sys
+import cPickle as pickle
+
+def extract_raw_word_vectors():
+	vectorFile = open("data/vectors.txt")
+	oboFile = open("data/hp.obo")
+	rd = reader.Reader(oboFile, vectorFile)
+	
+	h5f = h5py.File('data/word_vectors.h5', 'w')
+	h5f.create_dataset('word_embed', data=rd.word2vec)
+	h5f.close()
+	pickle.dump(rd.word2id, open('data/word2id.p', "wb"))
 
 def extract(repdir):
 	oboFile = open("data/hp.obo")
@@ -37,6 +47,8 @@ def main():
 	parser.add_argument('--gpu', action='store_true', default=False)
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
+	extract_raw_word_vectors()
+	return
 
 	'''
 	h5f = h5py.File('phrase_embeddings.h5', 'r')
