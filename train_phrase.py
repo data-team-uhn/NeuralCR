@@ -5,7 +5,6 @@ import phrase_model
 import accuracy
 import reader
 import annotator
-import gpu_access
 
 
 def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
@@ -25,7 +24,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 		batch = rd.read_batch(config.batch_size) #, config.comp_size)
 		if ii == 10000000 or batch == None:
 			break
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
 		loss += step_loss
@@ -42,15 +41,18 @@ def train(repdir):
 	vectorFile = open("data/vectors.txt")
 
 	rd = reader.Reader(oboFile, vectorFile)
-	rd.init_uberon_list()
+	print "reader inited"
+	#rd.init_uberon_list()
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 	
 	model = phrase_model.NCRModel(config, training=True)
-	model_loss = model.loss
+	model_loss = tf.reduce_mean(model.input_losses)
 
 	lr = tf.Variable(0.01, trainable=False)
+#	train_step_input_only = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(model.input_losses))
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
+#	train_step_input_and_def = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(tf.concat(0,[model.input_losses, model.def_losses]))
 
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	sess.run(tf.initialize_all_variables())
@@ -97,15 +99,9 @@ def train(repdir):
 
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
-	parser.add_argument('--gpu', action='store_true', default=False)
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
-	if args.gpu:
-		board = gpu_access.get_gpu()
-		with tf.device('/gpu:'+board):
-			train(args.repdir)
-	else:
-		train(args.repdir)
+	train(args.repdir)
 
 if __name__ == "__main__":
 	main()

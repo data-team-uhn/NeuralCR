@@ -7,7 +7,6 @@ import json
 import cPickle as pickle
 from os import listdir
 from blist import sortedlist
-import gpu_access
 import time
 import sent_accuracy
 
@@ -22,8 +21,7 @@ class TextAnnotator:
 		return results
 
 	def process_phrase(self, phrases, count=1):
-		with tf.device('/gpu:'+self.board):
-			ans_ncr = self.ant.get_hp_id(phrases, count)
+		ans_ncr = self.ant.get_hp_id(phrases, count)
 		return ans_ncr
 
 	def process_sent(self, sent, threshold, filter_overlap=False):
@@ -86,9 +84,7 @@ class TextAnnotator:
 		return final_results
 
 	def __init__(self, repdir, datadir=None, addNull=False):
-		self.board = gpu_access.get_gpu()
-		with tf.device('/gpu:'+self.board):
-			self.ant = annotator.create_annotator(repdir, datadir, True, addNull)
+		self.ant = annotator.create_annotator(repdir, datadir, True, addNull)
 
 
 

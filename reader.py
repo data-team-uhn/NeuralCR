@@ -26,6 +26,7 @@ def dfs(c, kids, mark):
 
 def read_oboFile(oboFile, topid=None):
 	names={}
+	def_text={}
 	kids={}
 	parents={}
 	real_id = {}
@@ -41,6 +42,8 @@ def read_oboFile(oboFile, topid=None):
 			names[hp_id] = []
 			real_id[hp_id] = hp_id
 
+		if tokens[0] == "def:":
+			def_text[hp_id] = line[line.index("\"")+1:line.rindex("\"")]
 		if tokens[0] == "name:":
 			names[hp_id] = [' '.join(tokens[1:])]
 		if tokens[0] == "synonym:":
@@ -74,7 +77,7 @@ def read_oboFile(oboFile, topid=None):
 			total_names.append(name)
 			#print name
 #	print len(total_names)
-	return names, kids, parents, real_id
+	return names, kids, parents, real_id, def_text
 
 
 class Reader:
@@ -146,7 +149,7 @@ class Reader:
 
 
 		###################### Read HPO ######################
-		self.names, self.kids, self.parents, self.real_id = read_oboFile(oboFile, "HP:0000118")
+		self.names, self.kids, self.parents, self.real_id, self.text_def= read_oboFile(oboFile, "HP:0000118")
 
 		self.concepts = [c for c in self.names.keys()]
 		if addNull:
@@ -296,6 +299,8 @@ def main():
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
+	print reader.text_def["HP:0000118"]
+	return
 	reader.init_uberon_list()
 	reader.reset_counter()
 	batch = reader.read_batch(10)

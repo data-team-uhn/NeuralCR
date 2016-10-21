@@ -3,6 +3,7 @@ import numpy as np
 import reader
 import phraseConfig
 import phrase_model
+import sys
 
 class NeuralPhraseAnnotator:
 	def __get_top_concepts(self, indecies_querry, res_querry, count):
@@ -66,4 +67,22 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=Fals
 	saver.restore(sess, repdir + '/training.ckpt')
 
 	return NeuralPhraseAnnotator(model, rd, sess, compWithPhrases)
+
+def main():
+	ant = create_annotator("checkpoints_backup/", "data/", True, False)
+	print ant.get_hp_id(["kindey", "renal"],5)
+	return
+	sample_data = open("cui_hpo_translations.csv").read().split("\n")
+	cui = [x.split(",")[0] for x in sample_data if len(x) > 0]
+	sample_data = [x.split(",")[1].replace('\"','') for x in sample_data if len(x) > 0]
+	results = ant.get_hp_id(sample_data, 5)
+	for i,x in enumerate(cui):
+		sys.stdout.write(cui[i] + "," + sample_data[i]+ "," + ("%.4f" % results[i][0][1]))
+		for j in range(5):
+			sys.stdout.write("," + results[i][j][0] +"," + ant.rd.names[results[i][j][0]][0].replace(",","-"))
+		sys.stdout.write("\n")
+
+
+if __name__ == "__main__":
+	main()
 

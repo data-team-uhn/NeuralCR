@@ -64,7 +64,7 @@ def compare_methods(ref, challenger, labeled_data_file, rd):
 			print str(100.0*counter/len(data.keys())) + '%'
 			print "Sensitivity :: ", float(true_positives)/positives
 			print "Precision :: ", float(true_positives)/calls
-		#	return
+			return
 		counter += 1
 
 	print "Sensitivity :: ", float(true_positives)/positives
@@ -112,7 +112,7 @@ def find_sent_accuracy(text_predictor, labeled_data_file, rd, verbose=False):
 			print str(100.0*counter/len(data.keys())) + '%'
 			print "Sensitivity :: ", float(true_positives)/positives
 			print "Precision :: ", float(true_positives)/calls
-		#	return
+			#return
 		counter += 1
 
 	print "Sensitivity :: ", float(true_positives)/positives
@@ -151,13 +151,43 @@ def find_sent_accuracy(text_predictor, labeled_data_file, rd, verbose=False):
 	return 
 
 def main():
+
+	'''
+	textAnt = sent_annotator.Sent_ant_wrapper('sent_checkpoints_backup/', False)
+	#sent_ant_func = lambda text: [x[0] for sent_res in textAnt.process_text(text, 1.0) for x in sent_res]
+	find_sent_accuracy(sent_ant_func, "labeled_sentences.p", textAnt.ant.rd)
+	find_sent_accuracy(biolark_wrapper.process_sent, "labeled_sentences.p", textAnt.ant.rd)
+	return
+	'''
+
+
+	textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/", False)
+	sent_window_func = lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )]
+	find_sent_accuracy(sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
+
+	#compare_methods(sent_ant_func, biolark_wrapper.process_sent, "labeled_sentences.p", textAnt.ant.rd)
+	#compare_methods(biolark_wrapper.process_sent, sent_ant_func, "labeled_sentences.p", textAnt.ant.rd)
+	return
+	'''
+	text = "Parental transmission of a structurally or functionally unbalanced chromosome complement can lead to 15q11-q13 deletions or to UPD and will result in case-specific recurrence risks."
+	text = "Branchiootorenal (BOR) syndrome is a common autosomal dominant form of hearing impairment previously mapped to 8q."
+	print biolark_wrapper.process_sent(text)
+	return
+	'''
+	#textAnt = sent_annotator.Sent_ant_wrapper('sent_checkpoints_backup/', False)
+	textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/", False)
+	sent_window_func = lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )]
+	#find_sent_accuracy(sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
+	compare_methods(biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
+	return
+
 	#	find_sent_accuracy(biolark_wrapper.process_sent, "labeled_sentences.p")
 
 #	textAnt = sent_level.TextAnnotator("checkpoints/", "data/")
 	#textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/")
 	#find_sent_accuracy(biolark_wrapper.process_sent, lambda text: [x[2] for x in textAnt.process_text(text, 1.0, True )], "labeled_sentences.p", textAnt.ant.rd)
 
-	textAnt = sent_level.TextAnnotator("checkpoints/", "data/", True)
+	textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/", False)
 	#textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/")
 #	find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )], "labeled_sentences.p", textAnt.ant.rd)
 	compare_methods(lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )], biolark_wrapper.process_sent, "labeled_sentences.p", textAnt.ant.rd)
@@ -167,8 +197,6 @@ def main():
 	return
 	###
 
-	textAnt = sent_annotator.Sent_ant_wrapper('sent_checkpoints/', True)
-	find_sent_accuracy(lambda text: [x[0] for sent_res in textAnt.process_text(text, 1.0) for x in sent_res], "labeled_sentences.p", textAnt.ant.rd)
 
 
 

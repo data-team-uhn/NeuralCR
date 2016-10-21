@@ -5,7 +5,6 @@ import phraseConfig
 import sent_model
 import sent_accuracy
 import argparse
-import gpu_access
 
 class NeuralSentenceAnnotator:
 	def __get_top_concepts(self, indecies_querry, res_querry, threshold):
@@ -73,7 +72,8 @@ class NeuralSentenceAnnotator:
 			res_querry = self.sess.run(self.model.gru_state, feed_dict = querry_dict)
 			ref_vecs = tf.Variable(res_querry, False)
 			sess.run(tf.assign(ref_vecs, res_querry))
-			self.querry_distances = self.model.euclid_dis_cartesian(ref_vecs, self.model.gru_state)
+			self.querry_distances = self.model.order_dis_cartesian(ref_vecs, self.model.gru_state)
+			#self.querry_distances = self.model.euclid_dis_cartesian(ref_vecs, self.model.gru_state)
 		else:
 			self.querry_distances = self.model.rnn_minpool_cartesian(self.model.get_HPO_embedding())
 			#self.querry_distances = self.model.euclid_dis_cartesian(self.model.get_HPO_embedding(), self.model.gru_state)
@@ -98,13 +98,10 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=Fals
 
 class Sent_ant_wrapper:
 	def process_text(self, text, threshold = 1.0):
-		with tf.device('/gpu:'+self.board):
-			return self.ant.process_text(text, threshold)
+		return self.ant.process_text(text, threshold)
 
 	def __init__(self, repdir, addNull=False):
-		self.board = gpu_access.get_gpu()
-		with tf.device('/gpu:'+self.board):
-			self.ant = create_annotator(repdir, "data/", addNull=addNull)		
+		self.ant = create_annotator(repdir, "data/", addNull=addNull)		
 
 
 
@@ -114,12 +111,18 @@ def main():
 	parser.add_argument('--repdir', help="The location where the checkpoints are stored, default is \'checkpoints/\'", default="sent_checkpoints/")
 	args = parser.parse_args()
 	
-	board = gpu_access.get_gpu()
-	with tf.device('/gpu:'+board):
-		ant = create_annotator(args.repdir, "data/", addNull=True)
-#		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_single_sent(text, 1.0) for x in sent_res], "labeled_sentences.p", ant.rd)
-		sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 1.0) for x in sent_res], "labeled_sentences.p", ant.rd)
-		#sent_accuracy.find_sent_accuracy(lambda text: [x[0] for sent_res in ant.process_text(text, 0.8) for x in sent_res], "labeled_sentences.p")
+	#ant = create_annotator(args.repdir, "data/", addNull=True)
+	ant = create_annotator("sent_checkpoints_backup", "data/", addNull=False)
+	#text = "A minimum diagnostic criterion is the combination of either the skin tumours or multiple odontogenic keratocysts plus a positive family history for this disorder, bifid ribs, lamellar calcification of the falx cerebri or any one of the skeletal abnormalities typical of this syndrome."
+	text = "We describe a 14-month-old girl with unilateral congenital cholesteatoma and anomalies of the facial nerve in addition to the more common branchial arch, otic, and renal malformations comprising the branchio-oto-renal (BOR) syndrome."
+	#text = "Intrafamilial clinical variability in type C brachydactyly: In this report we describe a 4-generation family in which three members present variable clinical and radiological manifestations of brachydactyly type C."
+
+	results = ant.get_hp_id([text], 2.0)
+	
+	print text
+	for res in results[0]:
+		print res[0], ant.rd.names[res[0]], res[1]
+
 
 
 if __name__ == '__main__':

@@ -107,6 +107,15 @@ class NCRModel():
 			best_match_distance = tf.select(condition_tiled, tf.minimum(best_match_distance, dis), best_match_distance)
 		return best_match_distance
 
+	def rnn_minpool_ordered_cartesian(self, v):
+		distances = [self.euclid_dis_cartesian(v, input_embedding) for input_embedding in self.gru_outputs]
+		best_match_distance = distances[0]
+		for i,dis in enumerate(distances):
+			condition = (i+1 < self.input_sequence_lengths)
+			condition_tiled = tf.tile(tf.expand_dims(condition,1), [1, tf.shape(v)[0]])
+			best_match_distance = tf.select(condition_tiled, tf.minimum(best_match_distance, dis), best_match_distance)
+		return best_match_distance
+
 
 	#########################
 	##### Loss Function #####
