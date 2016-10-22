@@ -321,11 +321,11 @@ class Reader:
 		ending = min(len(self.mixed_samples), self.counter + batch_size)
 		raw_batch = self.mixed_samples[self.counter : ending]
 
-		sequence_lengths = np.array([len(s[0][0]) for s in raw_batch])
+		sequence_lengths = np.array([len(s[0]) for s in raw_batch])
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
 		for i,s in enumerate(raw_batch):
-			sequences[i,:sequence_lengths[i]], _ = s[0]
-		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
+			sequences[i,:sequence_lengths[i]] = s[0]
+		hpo_ids = np.array([s[1] if len(s[1])>0 else 0 for s in raw_batch])
 
 		self.counter = ending
 

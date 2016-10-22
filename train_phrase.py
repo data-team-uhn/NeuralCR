@@ -6,10 +6,12 @@ import accuracy
 import reader
 import annotator
 import gpu_access
+import numpy as np
 
 
 def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 	rd.reset_counter()
+	rd.reset_counter_by_concept()
 
 	'''
 	batch = rd.read_batch(50, newConfig.comp_size)
@@ -22,10 +24,13 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 	loss = 0
 	report_len = 20
 	while True:
-		batch = rd.read_batch_by_concept(config.batch_size) #, config.comp_size)
+		batch = rd.read_batch(config.batch_size) #, config.comp_size)
+		#batch = rd.read_batch_by_concept(config.batch_size) #, config.comp_size)
 		if ii == 10000000 or batch == None:
 			break
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		#print np.array(batch['hp_id']).T[0]
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
 		loss += step_loss
@@ -48,7 +53,8 @@ def train(repdir):
 	config.update_with_reader(rd)
 	
 	model = phrase_model.NCRModel(config, training=True)
-	model_loss = tf.reduce_mean(model.input_losses)
+	model_loss = model.input_losses
+	#model_loss = tf.reduce_mean(model.input_losses)
 
 	lr = tf.Variable(0.01, trainable=False)
 #	train_step_input_only = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(model.input_losses))

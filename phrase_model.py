@@ -38,19 +38,24 @@ class NCRModel():
 	def get_loss(self, embedding):
 		### Lookup table HPO embedding ###
 		input_HPO_embedding = self.get_HPO_embedding(self.input_hpo_id)
+#		input_HPO_embedding_unique = self.get_HPO_embedding(self.input_hpo_id_unique)
 
 		cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding, self.get_HPO_embedding()))
+		#cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding_unique, self.get_HPO_embedding()))
 		mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
+		#mask= tf.gather(self.ancestry_masks, self.input_hpo_id_unique)
 
 		c2c_pos = tf.reduce_sum(mask * cdistance, 1)
 		c2c_neg = tf.reduce_sum((1-mask)*tf.maximum(0.0, self.config.alpha - cdistance), 1)
-		c2c_loss = c2c_pos + c2c_neg
+		c2c_loss = tf.reduce_sum(c2c_pos + c2c_neg)
 
 		p2c_loss = self.euclid_dis(embedding, input_HPO_embedding)
 		p2c_order_loss = self.order_dis(embedding, input_HPO_embedding)
 		p2c_loss += p2c_order_loss
+		p2c_loss = tf.reduce_sum(p2c_loss)
 
-		return c2c_loss + p2c_loss
+		return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id)[0])
+	#return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id_unique)[0])
 		#return tf.reduce_sum(c2c_loss + p2c_loss)
 		
 		'''
@@ -96,6 +101,7 @@ class NCRModel():
 
 		### Inputs ###
 		self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
+		self.input_hpo_id_unique = tf.placeholder(tf.int32, shape=[None])
 		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
 		#self.set_loss_for_input = tf.placeholder(tf.bool, shape=[])
