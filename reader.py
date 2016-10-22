@@ -325,7 +325,7 @@ class Reader:
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]] = s[0]
-		hpo_ids = np.array([s[1] if len(s[1])>0 else 0 for s in raw_batch])
+		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
 
 		self.counter = ending
 

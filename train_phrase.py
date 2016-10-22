@@ -24,13 +24,13 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 	loss = 0
 	report_len = 20
 	while True:
-		batch = rd.read_batch(config.batch_size) #, config.comp_size)
-		#batch = rd.read_batch_by_concept(config.batch_size) #, config.comp_size)
+		#		batch = rd.read_batch(config.batch_size) #, config.comp_size)
+		batch = rd.read_batch_by_concept(config.batch_size) #, config.comp_size)
 		if ii == 10000000 or batch == None:
 			break
 		#print np.array(batch['hp_id']).T[0]
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
-		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+#		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
 		loss += step_loss
@@ -40,7 +40,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 			loss = 0
 		ii += 1
 
-def train(repdir):
+def train(repdir, lr_init, lr_decay):
 	print "Training..."
 
 	oboFile = open("data/hp.obo")
@@ -63,14 +63,10 @@ def train(repdir):
 
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	sess.run(tf.initialize_all_variables())
-
 	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	
 	saver = tf.train.Saver()
-
-	lr_init = 0.01
-	lr_decay = 0.8
 
 	samplesFile = open("data/labeled_data")
 	ant = annotator.NeuralPhraseAnnotator(model, rd, sess, False)
@@ -110,9 +106,13 @@ def main():
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 
+
+	lr_init = 0.01
+	lr_decay = 0.8
+
 	board = gpu_access.get_gpu()
 	with tf.device('/gpu:'+board):
-		train(args.repdir)
+		train(args.repdir, lr_init, lr_decay)
 
 if __name__ == "__main__":
 	main()

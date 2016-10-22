@@ -38,12 +38,12 @@ class NCRModel():
 	def get_loss(self, embedding):
 		### Lookup table HPO embedding ###
 		input_HPO_embedding = self.get_HPO_embedding(self.input_hpo_id)
-#		input_HPO_embedding_unique = self.get_HPO_embedding(self.input_hpo_id_unique)
+		input_HPO_embedding_unique = self.get_HPO_embedding(self.input_hpo_id_unique)
 
-		cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding, self.get_HPO_embedding()))
-		#cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding_unique, self.get_HPO_embedding()))
-		mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
-		#mask= tf.gather(self.ancestry_masks, self.input_hpo_id_unique)
+		#cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding, self.get_HPO_embedding()))
+		cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding_unique, self.get_HPO_embedding()))
+		#mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
+		mask= tf.gather(self.ancestry_masks, self.input_hpo_id_unique)
 
 		c2c_pos = tf.reduce_sum(mask * cdistance, 1)
 		c2c_neg = tf.reduce_sum((1-mask)*tf.maximum(0.0, self.config.alpha - cdistance), 1)
@@ -54,8 +54,8 @@ class NCRModel():
 		p2c_loss += p2c_order_loss
 		p2c_loss = tf.reduce_sum(p2c_loss)
 
-		return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id)[0])
-	#return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id_unique)[0])
+		#return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id)[0])
+		return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id_unique)[0])
 		#return tf.reduce_sum(c2c_loss + p2c_loss)
 		
 		'''
@@ -113,16 +113,17 @@ class NCRModel():
 		#self.set_loss_for_def = tf.placeholder(tf.bool, shape=[])
 		##############
 
-
 		### Sequence prep & RNN ###
 		with tf.variable_scope("input-seq") as scope:
 			self.gru_outputs, self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
 		###########################
+		'''
 
 		### Definition Sequence prep & RNN ###
 		with tf.variable_scope("def-seq") as scope:
 			self.def_outputs, self.def_state = self.apply_rnn(self.def_sequence, self.def_sequence_lengths) 
 		###########################
+		'''
 
 		if training:
 			self.create_loss_var()
