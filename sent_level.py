@@ -1,4 +1,4 @@
-import annotator
+import phrase_annotator
 import tensorflow as tf
 import argparse
 import sys
@@ -84,7 +84,7 @@ class TextAnnotator:
 		return final_results
 
 	def __init__(self, repdir, datadir=None, addNull=False):
-		self.ant = annotator.create_annotator(repdir, datadir, True, addNull)
+		self.ant = phrase_annotator.create_annotator(repdir, datadir, True, addNull)
 
 
 
