@@ -114,8 +114,8 @@ class NCRModel():
 		##############
 
 		### Sequence prep & RNN ###
-		with tf.variable_scope("input-seq") as scope:
-			self.gru_outputs, self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+#		with tf.variable_scope("input-seq") as scope:
+		self.gru_outputs, self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
 		###########################
 		'''
 

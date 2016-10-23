@@ -298,7 +298,7 @@ class Reader:
 		phrase_ids = [self.phrase2ids(phrase) for phrase in phrases]
 		seq_lengths = np.array([len(phrase) for phrase in phrase_ids])
 		for i,s in enumerate(phrase_ids):
-			seq[i,:seq_lengths[i]] = s[0]
+			seq[i,:seq_lengths[i]] = s
 		return {'seq':seq, 'seq_len':seq_lengths}
 
 	def read_batch_by_concept(self, batch_size):#, compare_size):
@@ -341,6 +341,9 @@ def main():
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
+	print len(reader.names)
+	print sum([len(reader.names[x]) for x in reader.names])
+	return
 	batch = reader.read_batch_by_concept(10)
 	print batch
 	print batch['seq'].shape
