@@ -24,9 +24,10 @@ def test_accuarcy_phrase():
 
 	oboFile = open("data/hp.obo")
 	vectorFile = open("data/vectors.txt")
-	rd = reader.Reader(oboFile, vectorFile)
+	rd = reader.Reader(oboFile)
 
-	ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
+	ant = phrase_annotator.create_annotator("checkpoints/", "data/", True, False)
+	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
 #	ant = PhenotipsWrapper(rd)
 
 	samples = accuracy.prepare_phrase_samples(rd, samplesFile)

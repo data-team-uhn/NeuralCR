@@ -2,6 +2,16 @@ import tensorflow as tf
 import numpy as np
 
 
+def weight_variable(shape):
+	initial = tf.truncated_normal(shape, stddev=0.1)
+	return tf.Variable(initial)
+
+def linear(x, shape):
+	w = weight_variable(shape)
+	b = weight_variable([shape[1]])
+	return tf.matmul(x,w) + b
+
+
 def embedding_variable(name, shape):
 	return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
 
@@ -18,6 +28,7 @@ class NCRModel():
 		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq_embeded)]
 		cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 		return tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_length)
+#		return tf.nn.rnn(cell, inputs, tf.gather(self.type_embedding, self.input_type_id), dtype=tf.float32, sequence_length=seq_length)
 
 	def order_dis(self, v, u):
 		dif = u - v
@@ -35,55 +46,36 @@ class NCRModel():
 	#########################
 	##### Loss Function #####
 	#########################
-	def get_loss(self, embedding):
+	def get_loss_phrase(self, embedding):
 		### Lookup table HPO embedding ###
 		input_HPO_embedding = self.get_HPO_embedding(self.input_hpo_id)
-		input_HPO_embedding_unique = self.get_HPO_embedding(self.input_hpo_id_unique)
-
-		#cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding, self.get_HPO_embedding()))
-		cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding_unique, self.get_HPO_embedding()))
-		#mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
-		mask= tf.gather(self.ancestry_masks, self.input_hpo_id_unique)
-
-		c2c_pos = tf.reduce_sum(mask * cdistance, 1)
-		c2c_neg = tf.reduce_sum((1-mask)*tf.maximum(0.0, self.config.alpha - cdistance), 1)
-		c2c_loss = tf.reduce_sum(c2c_pos + c2c_neg)
-
 		p2c_loss = self.euclid_dis(embedding, input_HPO_embedding)
-		p2c_order_loss = self.order_dis(embedding, input_HPO_embedding)
-		p2c_loss += p2c_order_loss
-		p2c_loss = tf.reduce_sum(p2c_loss)
+		p2c_loss += self.order_dis(embedding, input_HPO_embedding)
+		return p2c_loss
 
-		#return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id)[0])
-		return (c2c_loss + p2c_loss) / tf.to_float(tf.shape(self.input_hpo_id_unique)[0])
-		#return tf.reduce_sum(c2c_loss + p2c_loss)
-		
-		'''
-		NULL_concept_dis =  tf.transpose(self.order_dis_cartesian(self.gru_state, self.get_HPO_embedding()))
-		NULL_concept_loss = tf.reduce_sum(tf.maximum(0.0, self.config.alpha - NULL_concept_dis), 1)
-		self.loss = tf.reduce_mean(tf.select(tf.equal(self.input_hpo_id, self.config.concept_NULL), NULL_concept_loss, c2c_loss + p2c_loss))
-		'''
+	def get_loss_def(self, embedding):
+		### Lookup table HPO embedding ###
+		input_HPO_embedding = self.get_HPO_embedding(self.input_hpo_id)
+		p2c_loss = self.euclid_dis(embedding, input_HPO_embedding)
+		return p2c_loss
 
 
 	def create_loss_var(self):
 		print "set loss"
-		## if type A exists
-		self.input_losses = self.get_loss(self.gru_state)
-#		self.def_losses = self.get_loss(self.def_state)
-		return
+		input_HPO_embedding = self.get_HPO_embedding(self.input_hpo_id)
 
-		'''
-		
-		total_loss = tf.cond(self.set_loss_for_input, lambda: self.get_loss(self.gru_state), lambda: tf.constant(0.0))
-		self.loss = total_loss #self.get_loss(self.gru_state)
-		return
-		count_batch = tf.cond(self.set_loss_for_input, lambda: tf.shape(self.gru_state)[0], lambda: tf.constant(0))
-		## if type B exists
-		total_loss = tf.cond(self.set_loss_for_def, lambda: self.get_loss(self.def_state)+total_loss, lambda: total_loss)
-		count_batch = tf.cond(self.set_loss_for_def, lambda: tf.shape(self.def_state)[0]+count_batch, lambda: count_batch)
+		cdistance = tf.transpose(self.order_dis_cartesian(input_HPO_embedding, self.get_HPO_embedding()))
+		mask= tf.gather(self.ancestry_masks, self.input_hpo_id)
 
-		self.loss = total_loss / tf.to_float(count_batch)
-		'''
+		c2c_pos = tf.reduce_sum(mask * cdistance, 1)
+		c2c_neg = tf.reduce_sum((1-mask)*tf.maximum(0.0, self.config.alpha - cdistance), 1)
+		c2c_loss = c2c_pos + c2c_neg
+
+		general_loss = c2c_loss
+		gru_loss = self.get_loss_phrase(self.gru_state)
+#		gru_loss = tf.select(tf.equal(self.input_type_id, tf.zeros_like(self.input_sequence_lengths)), self.get_loss_phrase(self.gru_state), self.get_loss_def(self.gru_state))
+
+		self.loss = tf.reduce_mean(general_loss + gru_loss)
 
 	#############################
 	##### Creates the model #####
@@ -95,6 +87,7 @@ class NCRModel():
 		self.config = config
 
 		self.HPO_embedding = embedding_variable("hpo_embedding", [config.hpo_size, config.hidden_size]) 
+#		self.type_embedding = embedding_variable("type_embedding", [config.n_types, config.hidden_size]) 
 		self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size])
 		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 		########################
@@ -104,6 +97,8 @@ class NCRModel():
 		self.input_hpo_id_unique = tf.placeholder(tf.int32, shape=[None])
 		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
+		self.input_type_id = tf.placeholder_with_default(tf.zeros_like(self.input_sequence_lengths), shape=[None])
+
 		#self.set_loss_for_input = tf.placeholder(tf.bool, shape=[])
 		##############
 
@@ -114,16 +109,14 @@ class NCRModel():
 		##############
 
 		### Sequence prep & RNN ###
-#		with tf.variable_scope("input-seq") as scope:
-		self.gru_outputs, self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+#		with tf.variable_scope("rnn0"):
+#		_, gru_state_tmp = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+		_, self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+#		self.gru_state = tf.nn.sigmoid(linear(gru_state_tmp, [config.hidden_size, config.hidden_size]))
+		#with tf.variable_scope("rnn1"):
+		#	_, self.gru_state_rnn1 = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+#		self.gru_state = tf.select(tf.equal(self.input_type_id, tf.zeros_like(self.input_sequence_lengths)), gru_state_rnn0, gru_state_rnn1)
 		###########################
-		'''
-
-		### Definition Sequence prep & RNN ###
-		with tf.variable_scope("def-seq") as scope:
-			self.def_outputs, self.def_state = self.apply_rnn(self.def_sequence, self.def_sequence_lengths) 
-		###########################
-		'''
 
 		if training:
 			self.create_loss_var()

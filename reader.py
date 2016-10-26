@@ -44,7 +44,7 @@ def read_oboFile(oboFile, topid=None):
 			real_id[hp_id] = hp_id
 
 		if tokens[0] == "def:":
-			def_text[hp_id] = line[line.index("\"")+1:line.rindex("\"")]
+			def_text[hp_id] = [line[line.index("\"")+1:line.rindex("\"")]]
 		if tokens[0] == "name:":
 			names[hp_id] = [' '.join(tokens[1:])]
 		if tokens[0] == "synonym:":
@@ -68,6 +68,7 @@ def read_oboFile(oboFile, topid=None):
 	mark=set()
 	dfs(topid, kids, mark)
 	names = {c:names[c] for c in mark}
+	def_text = {c:def_text[c] for c in mark if c in def_text}
 	parents = {c:parents[c] for c in mark}
 	kids = {c:kids[c] for c in mark}
 	for c in parents:
@@ -161,7 +162,7 @@ class Reader:
 
 
 		###################### Read HPO ######################
-		self.names, self.kids, self.parents, self.real_id, self.text_def= read_oboFile(oboFile, "HP:0000118")
+		self.names, self.kids, self.parents, self.real_id, self.def_text = read_oboFile(oboFile, "HP:0000118")
 
 		self.concepts = [c for c in self.names.keys()]
 		if addNull:
@@ -186,7 +187,12 @@ class Reader:
 				continue
 			self._update_ancestry(c)
 			for name in self.names[c]:
-				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]] )) 
+				self.samples.append( (self.phrase2ids(name, True), [self.concept2id[c]], 'name')) 
+			'''
+			if c in self.def_text:
+				for def_text in self.def_text[c]:
+					self.samples.append( (self.phrase2ids(def_text, True), [self.concept2id[c]], 'def_text')) 
+			'''
 
 		self.samples_by_concept = []
 		for i,c in enumerate(self.concepts):
@@ -325,11 +331,14 @@ class Reader:
 		sequences = np.zeros((min(batch_size, ending-self.counter), self.max_length), dtype = int)
 		for i,s in enumerate(raw_batch):
 			sequences[i,:sequence_lengths[i]] = s[0]
-		hpo_ids = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
+		hpo_id = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
+
+		type_to_id = {'name':0, 'def_text':1}
+		type_id = np.array([type_to_id[s[2]] for s in raw_batch])
 
 		self.counter = ending
 
-		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
+		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_id, 'type_id':type_id} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 def main():
 	'''
@@ -341,11 +350,15 @@ def main():
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile, vectorFile)
-	print len(reader.names)
-	print sum([len(reader.names[x]) for x in reader.names])
+	epoch = 0
+	while True:
+		print  epoch
+		batch = reader.read_batch(64)
+		print batch
+		if batch == None:
+			break
+		epoch += 1
 	return
-	batch = reader.read_batch_by_concept(10)
-	print batch
 	print batch['seq'].shape
 	print batch['seq_len'].shape
 	print batch['hp_id'].shape
