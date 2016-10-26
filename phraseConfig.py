@@ -1,5 +1,5 @@
 class Config:
-	batch_size = 32
+	batch_size = 64
 	hidden_size = 300
 	alpha = 1
 	n_types = 2
