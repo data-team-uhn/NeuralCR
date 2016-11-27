@@ -26,7 +26,9 @@ def test_accuarcy_phrase():
 	vectorFile = open("data/vectors.txt")
 	rd = reader.Reader(oboFile)
 
-	ant = phrase_annotator.create_annotator("checkpoints/", "data/", True, False)
+#	ant = phrase_annotator.create_annotator("checkpoints/", "data/", False, False)
+	ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
+	
 	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
 #	ant = PhenotipsWrapper(rd)
 

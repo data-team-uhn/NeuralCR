@@ -33,7 +33,15 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_type_id:batch['type_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
+		'''
+		print sess.run(model.first_vec, feed_dict = batch_feed)
+		#print sess.run(model.cond, feed_dict = batch_feed)
+		exit()
+		'''
+
 		_ , step_loss = sess.run([train_step, model_loss], feed_dict = batch_feed)
+		#print step_loss
+		#exit()
 		loss += step_loss
 
 		if ii % report_len == report_len-1:
@@ -68,10 +76,11 @@ def train(repdir, lr_init, lr_decay):
 	sess.run(tf.initialize_all_variables())
 	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
+#	sess.run(tf.assign(model.descendancy_masks, rd.ancestry_mask.T))
 	
 	saver = tf.train.Saver()
 	##C
-	#saver.restore(sess, repdir + '/training.ckpt')
+	#saver.restore(sess, "/ais/gobi4/arbabi/codes/NeuralCR/checkpoints/training.ckpt") ## TODO
 
 	samplesFile = open("data/labeled_data")
 	ant = phrase_annotator.NeuralPhraseAnnotator(model, rd, sess, False)
@@ -87,7 +96,7 @@ def train(repdir, lr_init, lr_decay):
 		testResultFile.write("")
 
 	##C
-	for epoch in range(20):#,40):
+	for epoch in range(20): #,40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -105,7 +114,8 @@ def train(repdir, lr_init, lr_decay):
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-	saver.save(sess, repdir+'/training.ckpt') ## TODO
+	saver.save(sess, "/ais/gobi4/arbabi/codes/NeuralCR/checkpoints/" + '/training.ckpt') ## TODO
+#	saver.save(sess, repdir + '/training.ckpt') ## TODO
 
 
 def main():
