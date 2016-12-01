@@ -3,7 +3,8 @@ import argparse
 import phraseConfig
 import phrase_model 
 import accuracy
-import reader
+#import reader
+import fasttext_reader as reader
 import phrase_annotator
 import gpu_access
 import numpy as np
@@ -51,16 +52,15 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 			loss = 0
 		ii += 1
 
-def train(repdir, lr_init, lr_decay):
+def train(repdir, lr_init, lr_decay, config):
 	print "Training..."
 
 	oboFile = open("data/hp.obo")
 	vectorFile = open("data/vectors.txt")
-
+	tf.reset_default_graph()
 	rd = reader.Reader(oboFile) #, vectorFile)
 	print "reader inited"
 	#rd.init_uberon_list()
-	config = phraseConfig.Config
 	config.update_with_reader(rd)
 	
 	model = phrase_model.NCRModel(config, training=True)
@@ -74,7 +74,8 @@ def train(repdir, lr_init, lr_decay):
 
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	sess.run(tf.initialize_all_variables())
-	sess.run(tf.assign(model.word_embedding, rd.word2vec))
+	##C
+#	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 #	sess.run(tf.assign(model.descendancy_masks, rd.ancestry_mask.T))
 	
@@ -96,26 +97,28 @@ def train(repdir, lr_init, lr_decay):
 		testResultFile.write("")
 
 	##C
-	for epoch in range(20): #,40):
+	for epoch in range(30): #,40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
 		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
-
-		hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
-		print "Accuracy on test set ::", float(hit)/total
-		with open(repdir+"/test_results.txt","a") as testResultFile:
-			testResultFile.write(str(float(hit)/total)+"\n")
+		
+		if (epoch % 5 == 0) or (epoch > 35):
+			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+			print "Accuracy on test set ::", float(hit)/total
+#		with open(repdir+"/test_results.txt","a") as testResultFile:
+#			testResultFile.write(str(float(hit)/total)+"\n")
 		
 		'''
 		hit, total = ant.find_accuracy(training_samples, 5)
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-	saver.save(sess, "/ais/gobi4/arbabi/codes/NeuralCR/checkpoints/" + '/training.ckpt') ## TODO
-#	saver.save(sess, repdir + '/training.ckpt') ## TODO
+	saver.save(sess, repdir + '/training.ckpt') ## TODO
+	hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+	return float(hit)/total
 
 
 def main():
@@ -124,12 +127,40 @@ def main():
 	args = parser.parse_args()
 
 
-	lr_init = 0.01
-	lr_decay = 0.8
+	lr_init = 0.015
+	lr_decay = 0.95
 
+	config = phraseConfig.Config
+	config.batch_size = 128
 #	board = gpu_access.get_gpu()
-#	with tf.device('/gpu:'+board):
-	train(args.repdir, lr_init, lr_decay)
+	'''
+	for lr_init in [0.005, 0.01, 0.015, 0.02, 0.002]:
+		for lr_decay in [0.7, 0.8, 0.9]:
+			for batch_size in [32, 64, 128]:
+					testResultFile.write('lr_init: ' + str(lr_init) +\
+							'\tlr_decay: ' + str(lr_decay) +\
+							'\tbatch_size ' + str(batch_size) +\
+							'\taccuracy: '+ str(accuracy) +"\n")
+	'''
+	'''
+	for config.l1_size in [100, 200, 300]:
+		for config.l2_size in [100, 200, 300]:
+			for config.hidden_size in [200, 300, 400, 100]:
+				config.concept_size = config.hidden_size
+				#with tf.device('/gpu:'+board):
+				accuracy = train(args.repdir, lr_init, lr_decay, config)
+				with open("grid_results_mlp.txt","a") as testResultFile:
+					testResultFile.write('l1_size: ' + str(config.l1_size) +\
+							'\tl2_size: ' + str(config.l2_size) +\
+							'\thidden_size: ' + str(config.hidden_size) +\
+							'\taccuracy: '+ str(accuracy) +"\n")
+	'''
+	train(args.repdir, lr_init, lr_decay, config)
+	return
+	'''
+	with tf.device('/gpu:'+board):
+		train(args.repdir, lr_init, lr_decay, config)
+	'''
 
 if __name__ == "__main__":
 	main()

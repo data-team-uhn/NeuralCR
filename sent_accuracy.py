@@ -161,9 +161,11 @@ def main():
 	'''
 
 
-	textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/", False)
+	textAnt = sent_level.TextAnnotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", False)
+	#textAnt = sent_level.TextAnnotator("checkpoints_backup/", "data/", False)
 	sent_window_func = lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )]
-	find_sent_accuracy(sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
+	compare_methods(biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
+#	find_sent_accuracy(sent_window_func, "labeled_sentences.p", textAnt.ant.rd)
 
 	#compare_methods(sent_ant_func, biolark_wrapper.process_sent, "labeled_sentences.p", textAnt.ant.rd)
 	#compare_methods(biolark_wrapper.process_sent, sent_ant_func, "labeled_sentences.p", textAnt.ant.rd)

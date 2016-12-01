@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
-import reader
+import fasttext_reader as reader
+#import reader
 import phraseConfig
 import phrase_model
 import sys
@@ -73,9 +74,23 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=Fals
 	return NeuralPhraseAnnotator(model, rd, sess, compWithPhrases)
 
 def main():
-	ant = create_annotator("checkpoints/", "data/", False, False)
+	#ant = create_annotator("checkpoints/", "data/", False, False)
+	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
-#	print [ant.rd.names[x[0]] for x in  ant.get_hp_id(["kindey", "renal"],5)]
+	while True:
+		sys.stdout.write("-----------\nEnter text:\n")
+		sys.stdout.flush()
+		text = sys.stdin.readline()
+		sys.stdout.write("\n")
+		matches = ant.get_hp_id([text],5)
+		for x in matches[0]:
+			sys.stdout.write(x[0]+' '+str(ant.rd.names[x[0]])+' '+str(x[1])+'\n')
+		sys.stdout.write("\n")
+	
+	return
+	print ant.get_hp_id(["kindey", "renal"],5)
+	print [ant.rd.names[x[0]] for x in  ant.get_hp_id(["kindey", "renal"],5)]
+	return
 	words =["brain retardation"] #, "kindey", "renal"]
 	for i,item in enumerate(ant.get_hp_id(words,20)):
 		print "-------"

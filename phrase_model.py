@@ -29,11 +29,28 @@ class NCRModel():
 		return embedding #tf.maximum(0.0, embedding)
 
 	def apply_rnn(self, seq, seq_length):
-		seq_embeded = tf.nn.embedding_lookup(self.word_embedding, seq)
-		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq_embeded)]
+		#		seq_embeded = tf.nn.embedding_lookup(self.word_embedding, seq)
+#		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq_embeded)]
+		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq)]
+		#'''
+		w1 = weight_variable('layer1W', [self.config.word_embed_size, self.config.l1_size])
+		b1 = weight_variable('layer1B', [self.config.l1_size])
+		w2 = weight_variable('layer2W', [self.config.l1_size, self.config.l2_size])
+		b2 = weight_variable('layer2B', [self.config.l2_size])
+		'''
+		w3 = weight_variable('layer3W', [l3_size, l3_size])
+		b3 = weight_variable('layer3B', [l3_size])
+		'''
+
+		mlp_inputs = [tf.nn.tanh(tf.matmul(x, w1)+b1) for x in inputs]
+		mlp_inputs = [tf.nn.tanh(tf.matmul(x, w2)+b2) for x in mlp_inputs]
+		#mlp_inputs = [tf.nn.tanh(tf.matmul(x, w3)+b3) for x in mlp_inputs]
+		#'''
 		cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 
-		_, state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_length)
+#		_, state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_length)
+		_, state = tf.nn.rnn(cell, mlp_inputs, dtype=tf.float32, sequence_length=seq_length)
+		return state
 
 		layer1 = tf.nn.softplus(linear('layer1', state, [self.config.hidden_size, self.config.hidden_size]))
 		layer2 = tf.nn.softplus(linear('layer2', state, [self.config.hidden_size, self.config.hidden_size]))
@@ -151,7 +168,7 @@ class NCRModel():
 
 		self.HPO_embedding = embedding_variable("hpo_embedding", [config.hpo_size, config.concept_size]) 
 #		self.type_embedding = embedding_variable("type_embedding", [config.n_types, config.hidden_size]) 
-		self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size])
+#		self.word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embed_size], trainable=False)
 		self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 		self.descendancy_masks = tf.transpose(self.ancestry_masks) # tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 		########################
@@ -159,7 +176,8 @@ class NCRModel():
 		### Inputs ###
 		self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
 		self.input_hpo_id_unique = tf.placeholder(tf.int32, shape=[None])
-		self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
+		self.input_sequence = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
+		#self.input_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
 		self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
 		self.input_type_id = tf.placeholder_with_default(tf.zeros_like(self.input_sequence_lengths), shape=[None])
 

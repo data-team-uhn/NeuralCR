@@ -21,6 +21,7 @@ class TextAnnotator:
 		return results
 
 	def process_phrase(self, phrases, count=1):
+		#		print phrases
 		ans_ncr = self.ant.get_hp_id(phrases, count)
 		return ans_ncr
 
@@ -34,7 +35,8 @@ class TextAnnotator:
 				if i+r >= len(tokens):
 					break
 				phrase += " " + tokens[i+r]
-				candidates.append(phrase.strip())
+				if len(phrase.strip()) > 0:
+					candidates.append(phrase.strip())
 			hp_ids = self.process_phrase(candidates, 1)
 			for i in range(len(hp_ids)):
 				if hp_ids[i][0][1] < threshold:

@@ -1,4 +1,5 @@
-import reader
+import fasttext_reader as reader
+#import reader
 import phrase_model
 import accuracy
 import phrase_annotator
@@ -28,12 +29,13 @@ def test_accuarcy_phrase():
 
 #	ant = phrase_annotator.create_annotator("checkpoints/", "data/", False, False)
 	ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
+	#ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	
 	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
 #	ant = PhenotipsWrapper(rd)
 
 	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
-	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, True)
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, False) #True)
 	print cor, tot
 	print float(cor)/tot
 
