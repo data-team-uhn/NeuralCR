@@ -9,24 +9,16 @@ import sys
 class NeuralPhraseAnnotator:
 	def __get_top_concepts(self, indecies_querry, res_querry, count):
 		tmp_res = []
-		if self.compWithPhrases:
-			for i in indecies_querry:
-				res_item = (self.rd.concepts[self.rd.name2conceptid.values()[i]],res_querry[i])
-				if res_item[0] not in [x[0] for x in tmp_res]:
-					tmp_res.append(res_item)
-				if len(tmp_res)>=count:
-					break
-		else:
-			for i in indecies_querry:
-				tmp_res.append((self.rd.concepts[i],res_querry[i]))
-				if len(tmp_res)>=count:
-					break
+		for i in indecies_querry:
+			tmp_res.append((self.rd.concepts[i],res_querry[i]))
+			if len(tmp_res)>=count:
+				break
 		return tmp_res
 
 	def get_hp_id(self, querry, count=1):
 		inp = self.rd.create_test_sample(querry)
 		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len']}
-		res_querry = self.sess.run(self.querry_distances, feed_dict = querry_dict)
+		res_querry = 1.0-self.sess.run(self.model.pred, feed_dict = querry_dict)
 
 		results=[]
 		for s in range(len(querry)):
@@ -39,6 +31,7 @@ class NeuralPhraseAnnotator:
 		self.model=model
 		self.rd = rd
 		self.sess = sess
+		return
 		self.compWithPhrases = compWithPhrases
 
 		if self.compWithPhrases:

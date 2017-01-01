@@ -31,7 +31,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 		if ii == 10000000 or batch == None:
 			break
 		#print np.array(batch['hp_id']).T[0]
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_type_id:batch['type_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		'''
@@ -67,7 +67,7 @@ def train(repdir, lr_init, lr_decay, config):
 	model_loss = model.loss
 	#model_loss = tf.reduce_mean(model.input_losses)
 
-	lr = tf.Variable(0.01, trainable=False)
+	lr = tf.Variable(0.02, trainable=False)
 #	train_step_input_only = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(model.input_losses))
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
 #	train_step_input_and_def = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(tf.concat(0,[model.input_losses, model.def_losses]))
@@ -81,7 +81,7 @@ def train(repdir, lr_init, lr_decay, config):
 	
 	saver = tf.train.Saver()
 	##C
-	#saver.restore(sess, "/ais/gobi4/arbabi/codes/NeuralCR/checkpoints/training.ckpt") ## TODO
+#	saver.restore(sess, "/ais/gobi4/arbabi/codes/NeuralCR/checkpoints/training.ckpt") ## TODO
 
 	samplesFile = open("data/labeled_data")
 	ant = phrase_annotator.NeuralPhraseAnnotator(model, rd, sess, False)
@@ -97,15 +97,19 @@ def train(repdir, lr_init, lr_decay, config):
 		testResultFile.write("")
 
 	##C
-	for epoch in range(30): #,40):
+        for epoch in range(20):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
 		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
-		
-		if (epoch % 5 == 0) or (epoch > 35):
+		for x in ant.get_hp_id(['retina cancer'], 10)[0]:
+		#for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
+			print rd.names[x[0]], x[1]
+		if False and (epoch % 5 == 0):
+			saver.save(sess, repdir + '/training.ckpt') ## TODO
+		if True or (epoch % 5 == 0) or (epoch > 35):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 			print "Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
@@ -127,7 +131,7 @@ def main():
 	args = parser.parse_args()
 
 
-	lr_init = 0.015
+	lr_init = 0.0005
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
