@@ -2,10 +2,16 @@ class Config:
 	batch_size = 128
 	hidden_size = 400
 	concept_size = 400
+
+        layer1_size = 800
+        layer2_size = 800
+        layer3_size = 800
+
 	alpha = 1
 	n_types = 2
 	l1_size = 200
 	l2_size = 200
+	l3_size = 200
 
 	@staticmethod
 	def update_with_reader(rd):

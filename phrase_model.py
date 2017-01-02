@@ -57,13 +57,13 @@ class NCRModel():
         w2 = weight_variable('layer2W', [self.config.l1_size, self.config.l2_size])
         b2 = weight_variable('layer2B', [self.config.l2_size])
         '''
-        w3 = weight_variable('layer3W', [l3_size, l3_size])
-        b3 = weight_variable('layer3B', [l3_size])
+        w3 = weight_variable('layer3W', [self.config.l2_size, self.config.l3_size])
+        b3 = weight_variable('layer3B', [self.config.l3_size])
         '''
 
         mlp_inputs = [tf.nn.tanh(tf.matmul(x, w1)+b1) for x in inputs]
         mlp_inputs = [tf.nn.tanh(tf.matmul(x, w2)+b2) for x in mlp_inputs]
-        #mlp_inputs = [tf.nn.tanh(tf.matmul(x, w3)+b3) for x in mlp_inputs]
+#        mlp_inputs = [tf.nn.tanh(tf.matmul(x, w3)+b3) for x in mlp_inputs]
         #'''
         cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
 
@@ -88,44 +88,24 @@ class NCRModel():
         self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
         self.input_sequence = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
-        self.label = tf.one_hot(self.input_hpo_id, config.hpo_size)
+        label = tf.one_hot(self.input_hpo_id, config.hpo_size)
 
-        '''
-        self.def_sequence = tf.placeholder(tf.int32, shape=[None, config.max_sequence_length])
-        self.def_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
-        '''
-        #gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
         gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
 
-        #layer1 = tf.nn.softplus(linear('sm_layer1', gru_state, [self.config.hidden_size, 2*self.config.hidden_size]))
-        #layer2 = tf.nn.softplus(linear('sm_layer2', layer1, [2*self.config.hidden_size, 2*self.config.hidden_size]))
-        layer1 = tf.nn.tanh(linear('sm_layer1', gru_state, [self.config.hidden_size, 2*self.config.hidden_size]))
-        layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [2*self.config.hidden_size, 2*self.config.hidden_size]))
-        layer3 = tf.nn.tanh(linear('sm_layer3', layer2, [2*self.config.hidden_size, 2*self.config.hidden_size]))
-        layer4= (linear('sm_layer4', layer3, [2*self.config.hidden_size, self.config.hpo_size]))
+        layer1 = tf.nn.tanh(linear('sm_layer1', gru_state, [self.config.hidden_size, self.config.layer1_size]))
+        layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
+        layer3 = tf.nn.tanh(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
+        layer4= (linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
 
-        '''
-        layer1b = tf.nn.tanh(linear('sm_layer1b', gru_state, [self.config.hidden_size, 2*self.config.hidden_size]))
-        layer2b = tf.nn.tanh(linear('sm_layer2b', layer1b, [2*self.config.hidden_size, 2*self.config.hidden_size]))
-        layer3b = tf.nn.tanh(linear('sm_layer3b', layer2b, [2*self.config.hidden_size, 2*self.config.hidden_size]))
-        layer4b = tf.nn.tanh(linear('sm_layer4b', layer3b, [2*self.config.hidden_size, self.config.hpo_size]))
-        '''
+        mixing_w = tf.Variable(1.0)
+
+        score_layer = (mixing_w * layer4 +\
+                tf.matmul(layer4, tf.transpose(self.ancestry_masks)))
+
+        self.pred = tf.nn.softmax(score_layer)
+
         if training:
-            '''
-            self.loss = tf.reduce_mean(tf.reduce_sum(\
-                    tf.nn.sigmoid_cross_entropy_with_logits(layer3,\
-                                    tf.nn.embedding_lookup(self.ancestry_masks, self.input_hpo_id)), [-1]))
-            '''
-            '''
-            self.loss = tf.reduce_mean(tf.reduce_sum(\
-                    tf.nn.softmax_cross_entropy_with_logits(layer3,\
-                                    self.label), [-1]))
-            '''
-            #self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(tf.matmul(layer4, tf.transpose(self.ancestry_masks)) + tf.matmul(layer4b, (self.ancestry_masks)), tf.one_hot(self.input_hpo_id, self.config.hpo_size )))
-            self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(tf.matmul(layer4, tf.transpose(self.ancestry_masks)), tf.one_hot(self.input_hpo_id, self.config.hpo_size )))
-        #self.pred = tf.nn.softmax(tf.matmul(layer4, tf.transpose(self.ancestry_masks)) + tf.matmul(layer4b, (self.ancestry_masks)))
-        self.pred = tf.nn.softmax(tf.matmul(layer4, tf.transpose(self.ancestry_masks)))
-        #self.pred = tf.nn.softmax(tf.select(tf.greater(tf.nn.sigmoid(layer3),0.6), tf.matmul(tf.nn.sigmoid(layer3), tf.transpose(self.ancestry_masks)), tf.zeros_like(layer3)))
-        #		self.pred = tf.nn.sigmoid(layer3)
+            self.loss = tf.reduce_mean(\
+                    tf.nn.softmax_cross_entropy_with_logits(score_layer, label))
 
 
