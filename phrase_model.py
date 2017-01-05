@@ -93,9 +93,10 @@ class NCRModel():
         gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
 
         layer1 = tf.nn.tanh(linear('sm_layer1', gru_state, [self.config.hidden_size, self.config.layer1_size]))
-        layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
-        layer3 = tf.nn.tanh(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
-        layer4= (linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
+ #       layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
+ #       layer3 = tf.nn.tanh(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
+        #layer4= (linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
+        layer4= (linear('sm_layer4', layer1, [self.config.layer1_size, self.config.hpo_size]))
 
         mixing_w = tf.Variable(1.0)
 

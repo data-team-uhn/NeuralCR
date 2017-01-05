@@ -1,9 +1,9 @@
 class Config:
 	batch_size = 128
-	hidden_size = 400
+	hidden_size = 600
 	concept_size = 400
 
-        layer1_size = 800
+        layer1_size = 1200
         layer2_size = 800
         layer3_size = 800
 
