@@ -131,7 +131,7 @@ def main():
 	args = parser.parse_args()
 
 
-	lr_init = 0.001
+	lr_init = 0.0005
 	lr_decay = 0.95
 
 	config = phraseConfig.Config

@@ -36,7 +36,7 @@ def test_accuarcy_phrase():
 #	ant = PhenotipsWrapper(rd)
 
 	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
-	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, True)
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 1, True)
 	print cor, tot
 	print float(cor)/tot
 

@@ -18,7 +18,9 @@ class NeuralPhraseAnnotator:
 	def get_hp_id(self, querry, count=1):
 		inp = self.rd.create_test_sample(querry)
 		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len']}
-		res_querry = 1.0-self.sess.run(self.model.pred, feed_dict = querry_dict)
+		res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
+		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
+		#res_querry = 1.0-self.sess.run(self.model.pred, feed_dict = querry_dict)
 
 		results=[]
 		for s in range(len(querry)):
@@ -75,7 +77,7 @@ def main():
 		sys.stdout.flush()
 		text = sys.stdin.readline()
 		sys.stdout.write("\n")
-		matches = ant.get_hp_id([text],5)
+		matches = ant.get_hp_id([text],15)
 		for x in matches[0]:
 			sys.stdout.write(x[0]+' '+str(ant.rd.names[x[0]])+' '+str(x[1])+'\n')
 		sys.stdout.write("\n")
