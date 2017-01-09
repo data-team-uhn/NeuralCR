@@ -8,7 +8,7 @@ import cPickle as pickle
 from os import listdir
 from blist import sortedlist
 import time
-import sent_accuracy
+#import sent_accuracy
 
 class TextAnnotator:
 
@@ -86,8 +86,11 @@ class TextAnnotator:
 		final_results = sorted(final_results, key=lambda x : x[0])
 		return final_results
 
-	def __init__(self, repdir, datadir=None, addNull=False):
-		self.ant = phrase_annotator.create_annotator(repdir, datadir, True, addNull)
+	def __init__(self, repdir=None, ant=None, datadir=None, addNull=False):
+            if ant == None:
+                self.ant = phrase_annotator.create_annotator(repdir, datadir, True, addNull)
+            else:
+                self.ant = ant
 
 
 
