@@ -53,11 +53,11 @@ class NCRModel():
 
         mixing_w = tf.Variable(1.0)
 
-        '''
-        score_layer = (mixing_w * layer4 +\
-                tf.matmul(layer4, tf.transpose(self.ancestry_masks)))
+        self.score_layer = (mixing_w * self.layer4 +\
+                tf.matmul(self.layer4, tf.transpose(self.ancestry_masks)))
         '''
         self.score_layer = tf.matmul(self.layer4, tf.transpose(self.ancestry_masks))
+        '''
 
         self.pred = tf.nn.softmax(self.score_layer)
 

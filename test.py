@@ -6,8 +6,6 @@ import phrase_annotator
 import phraseConfig
 import tensorflow as tf
 import sys
-import requests
-import json
 
 class PhenotipsWrapper:
 	def get_hp_id(self, phrases, count=1):
