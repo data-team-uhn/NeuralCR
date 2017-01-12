@@ -28,6 +28,7 @@ class NCRModel():
         layer2 = tf.nn.tanh(tf.nn.conv1d(layer1, filters2, 1, padding='SAME'))
 
         return tf.reduce_max(layer2, [1])
+        #return tf.reduce_sum(layer2, [1])
 
     #############################
     ##### Creates the model #####
@@ -54,11 +55,11 @@ class NCRModel():
         mixing_w = tf.Variable(1.0)
 
        # self.score_layer = (mixing_w * self.layer4 +\
+        '''
         self.score_layer = (mixing_w * self.layer4 + tf.minimum(self.layer4, tf.zeros_like(self.layer4)) +\
                 tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
         '''
         self.score_layer = tf.matmul(self.layer4, tf.transpose(self.ancestry_masks))
-        '''
 
         self.pred = tf.nn.softmax(self.score_layer)
 
