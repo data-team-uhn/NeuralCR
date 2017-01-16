@@ -1,47 +1,46 @@
-import process_querry
-from multiprocessing import Pool
-import argparse
+import fasttext_reader as reader
+#import reader
+import phrase_model
+import accuracy
+import phrase_annotator
+import phraseConfig
+import tensorflow as tf
 import sys
-import chunck_NP
-import os
-import nltk
 
-ant = None
+class PhenotipsWrapper:
+	def get_hp_id(self, phrases, count=1):
+		results = []
+		for phrase in phrases:
+			resp = requests.get('https://phenotips.org/get/PhenoTips/SolrService?vocabulary=hpo&q='+phrase.replace(" ","+"), verify=False).json()
+			ans = [(self.rd.real_id[str(x[u'id'])],x[u'score']) if str(x[u'id']) in self.rd.real_id else (x[u'id'],x[u'score']) for x in resp['rows'][:count]]
+			results.append(ans)
+		return results
+	def __init__(self, rd):
+		self.rd = rd
 
-def process_file((text,output_addr)):
-    output_file=open(output_addr,"w")
-    chunks=chunck_NP.extract_NP_fromText(text)
-    for sentence in chunks:
-        for np in sentence:
-            input_term=" ".join(np)
-            res, sc =ant.get_hp_id(input_term)
-            if sc > 0.75:
-				real_id_tokens=res.split(":")
-				real_id=real_id_tokens[0]+"_"+real_id_tokens[1]
-				output_file.write(real_id+"\n")
+def test_accuarcy_phrase():
+	samplesFile = open("data/labeled_data")
 
+	oboFile = open("data/hp.obo")
+	vectorFile = open("data/vectors.txt")
+	rd = reader.Reader(oboFile)
 
+#	ant = phrase_annotator.create_annotator("checkpoints/", "data/", False, False)
+	ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
+	#ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
+	#ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
+	
+	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
+#	ant = PhenotipsWrapper(rd)
+
+	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, True)
+	print cor, tot
+	print float(cor)/tot
 
 def main():
-	ps=argparse.ArgumentParser()
-	ps.add_argument('input_dir', type=str)
-	ps.add_argument('output_dir', type=str)
-	args=ps.parse_args()
-
-	global ant
-	ant = process_querry.NeuralAnnotator()
-
-	data=[]
-	for text_file in os.listdir(args.input_dir):
-		text=open(args.input_dir+"/"+text_file).read().decode('utf8').encode('ascii','ignore')
-		output_addr=args.output_dir+"/"+text_file
-		data.append([text,output_addr])
-		process_file((text,output_addr))
-	print "data tuple created..."
-
-	pool=Pool(20)
-	pool.map(process_file,tuple(data))
+	test_accuarcy_phrase()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 	main()
