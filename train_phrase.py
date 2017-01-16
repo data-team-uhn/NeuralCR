@@ -131,12 +131,12 @@ def main():
 	args = parser.parse_args()
 
 
-	lr_init = 0.0005
+	lr_init = 0.0002
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
 	config.batch_size = 128
-	board = gpu_access.get_gpu()
+	#board = gpu_access.get_gpu()
 	'''
 	for lr_init in [0.005, 0.01, 0.015, 0.02, 0.002]:
 		for lr_decay in [0.7, 0.8, 0.9]:
@@ -159,12 +159,12 @@ def main():
 							'\thidden_size: ' + str(config.hidden_size) +\
 							'\taccuracy: '+ str(accuracy) +"\n")
 	'''
-	'''
 	train(args.repdir, lr_init, lr_decay, config)
 	return
 	'''
 	with tf.device('/gpu:'+board):
 		train(args.repdir, lr_init, lr_decay, config)
+	'''
 
 if __name__ == "__main__":
 	main()
