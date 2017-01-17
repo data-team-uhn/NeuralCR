@@ -33,10 +33,13 @@ class NCRModel():
     #############################
     ##### Creates the model #####
     #############################
-    def __init__(self, config, training = False, ancs_sparse_tensor = None):
+    def __init__(self, config, training = False, ancs_sparse = None):
         self.config = config
 
-        self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
+        if ancs_sparse is None:
+            self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
+        else:
+            ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), shape=[config.hpo_size, config.hpo_size]))
 
         ### Inputs ###
         self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
@@ -61,24 +64,22 @@ class NCRModel():
         #self.layer4= (linear('sm_layer4', layer2, [self.config.layer2_size, self.config.hpo_size]))
         #self.layer4= tf.nn.tanh(linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
 
-        #mixing_w= tf.nn.sigmoid(tf.Variable(0.0))
 
-        mixing_w = tf.Variable(1.0)
+        #mixing_w = tf.Variable(1.0)
+        mixing_w= tf.nn.sigmoid(tf.Variable(0.0))
        # self.score_layer = (mixing_w * self.layer4 +\
         '''
         self.score_layer = (mixing_w * self.layer4 + tf.minimum(self.layer4, tf.zeros_like(self.layer4)) +\
                 tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
         '''
         ### TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ancestry_sparse_matrix
-        if ancs_sparse_tensor is None:
-            print 'dense'
+        if ancs_sparse is None:
             #self.score_layer = (mixing_w * self.layer4 + tf.minimum(self.layer4, tf.zeros_like(self.layer4)) +\
             #        tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
             self.score_layer =  tf.matmul(self.layer4, tf.transpose(self.ancestry_masks))
         else:
-            print 'sparse'
-            #self.score_layer =  tf.matmul(self.layer4, tf.transpose(self.ancestry_masks))
-            self.score_layer =  tf.transpose(tf.sparse_tensor_dense_matmul(ancs_sparse_tensor, tf.transpose(self.layer4)))
+            self.score_layer = (1-mixing_w) * self.layer4 + mixing_w * tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
+            #self.score_layer =  tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
 
         self.pred = tf.nn.softmax(self.score_layer)
 

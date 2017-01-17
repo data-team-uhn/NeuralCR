@@ -65,22 +65,18 @@ def train(repdir, lr_init, lr_decay, config):
 	
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
-        ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = rd.sparse_ancestrs, values = [1.0]*len(rd.sparse_ancestrs), shape=[config.hpo_size, config.hpo_size]))
-       # ancestry_sparse_tensor = None
-
-	model = phrase_model.NCRModel(config, training=True, ancs_sparse_tensor = ancestry_sparse_tensor)
+	model = phrase_model.NCRModel(config, training=True, ancs_sparse = rd.sparse_ancestrs)
+        """
+	model = phrase_model.NCRModel(config, training=True)
+        sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
+        """
 
 	model_loss = model.loss
-	#model_loss = tf.reduce_mean(model.input_losses)
 
 	lr = tf.Variable(0.02, trainable=False)
-#	train_step_input_only = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(model.input_losses))
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
-#	train_step_input_and_def = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(tf.concat(0,[model.input_losses, model.def_losses]))
 
 	sess.run(tf.initialize_all_variables())
-        if ancestry_sparse_tensor is None:
-            sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
 #	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 #	sess.run(tf.assign(model.descendancy_masks, rd.ancestry_mask.T))

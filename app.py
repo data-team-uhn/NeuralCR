@@ -4,7 +4,7 @@ from sent_level import TextAnnotator
 import phrase_annotator
 
 app = Flask(__name__)
-ant = phrase_annotator.create_annotator("/home/aryan/codes/NeuralCR/checkpoints", "data/", True, False)
+ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
 textAnt = TextAnnotator(ant=ant)
 
 @app.route('/term_match/<string:querry>', methods=['GET'])

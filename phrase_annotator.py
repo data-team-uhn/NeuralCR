@@ -60,7 +60,7 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=Fals
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 
-	model = phrase_model.NCRModel(config)
+	model = phrase_model.NCRModel(config, ancs_sparse = rd.sparse_ancestrs)
 
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	saver = tf.train.Saver()
