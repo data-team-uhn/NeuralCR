@@ -63,7 +63,13 @@ def train(repdir, lr_init, lr_decay, config):
 	#rd.init_uberon_list()
 	config.update_with_reader(rd)
 	
-	model = phrase_model.NCRModel(config, training=True)
+	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+
+        ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = rd.sparse_ancestrs, values = [1.0]*len(rd.sparse_ancestrs), shape=[config.hpo_size, config.hpo_size]))
+       # ancestry_sparse_tensor = None
+
+	model = phrase_model.NCRModel(config, training=True, ancs_sparse_tensor = ancestry_sparse_tensor)
+
 	model_loss = model.loss
 	#model_loss = tf.reduce_mean(model.input_losses)
 
@@ -72,11 +78,11 @@ def train(repdir, lr_init, lr_decay, config):
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
 #	train_step_input_and_def = tf.train.AdamOptimizer(lr).minimize(tf.reduce_mean(tf.concat(0,[model.input_losses, model.def_losses]))
 
-	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	sess.run(tf.initialize_all_variables())
+        if ancestry_sparse_tensor is None:
+            sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
 #	sess.run(tf.assign(model.word_embedding, rd.word2vec))
-	sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 #	sess.run(tf.assign(model.descendancy_masks, rd.ancestry_mask.T))
 	
 	saver = tf.train.Saver()
@@ -136,7 +142,7 @@ def main():
 
 	config = phraseConfig.Config
 	config.batch_size = 128
-	#board = gpu_access.get_gpu()
+	board = gpu_access.get_gpu()
 	'''
 	for lr_init in [0.005, 0.01, 0.015, 0.02, 0.002]:
 		for lr_decay in [0.7, 0.8, 0.9]:
@@ -159,12 +165,12 @@ def main():
 							'\thidden_size: ' + str(config.hidden_size) +\
 							'\taccuracy: '+ str(accuracy) +"\n")
 	'''
+	'''
 	train(args.repdir, lr_init, lr_decay, config)
 	return
 	'''
 	with tf.device('/gpu:'+board):
 		train(args.repdir, lr_init, lr_decay, config)
-	'''
 
 if __name__ == "__main__":
 	main()

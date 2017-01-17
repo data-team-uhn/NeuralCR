@@ -118,6 +118,20 @@ class Reader:
 
 		return self.ancestry_mask[cid,:]
 
+	def _update_ancestry_sparse(self, c):
+		cid = self.concept2id[c]
+		if cid in self.ancestrs:
+			return self.ancestrs[cid]
+
+                self.ancestrs[cid] = set([cid])
+
+		for p in self.parents[c]:
+                    self.ancestrs[cid].update(self._update_ancestry_sparse(p))
+                return self.ancestrs[cid]
+
+
+
+
 	def __init__(self, oboFile):
 		## Create word to id
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
@@ -138,9 +152,11 @@ class Reader:
 				self.name2conceptid[normalized_name] = self.concept2id[c]
 
 		self.ancestry_mask = np.zeros((len(self.concepts), len(self.concepts)))
+                self.ancestrs = {}
 		self.samples = []
 		for c in self.concepts:
 			self._update_ancestry(c)
+			self._update_ancestry_sparse(c)
 			for name in self.names[c]:
 				self.samples.append((self.phrase2vec(name), [self.concept2id[c]], 'name')) 
 			'''
@@ -163,6 +179,11 @@ class Reader:
 		self.word2id[self.unkown_term] = len(self.word2id)
 		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
 		'''
+                self.sparse_ancestrs = []
+                for cid in self.ancestrs:
+                    #self.sparse_ancestrs += [[ancid, cid] for ancid in self.ancestrs[cid]]
+                    self.sparse_ancestrs += [[cid, ancid] for ancid in self.ancestrs[cid]]
+
 
 
 		self.pmc_has_init = False
@@ -305,6 +326,10 @@ def main():
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
 	reader = Reader(oboFile)
+        print (reader.sparse_ancestrs)
+        print len(reader.sparse_ancestrs)
+        print np.sum(reader.ancestry_mask)
+        exit()
 	epoch = 0
 	while True:
 		print  epoch
