@@ -57,10 +57,14 @@ class NCRModel():
         init_w = tf.constant(np.abs(np.random.normal(0.0,0.1,[self.config.layer2_size, self.config.hpo_size])), dtype=tf.float32)
         last_layer_w = tf.get_variable('last_layer_w', initializer=init_w)
 
+        init_w_para = tf.constant(np.abs(np.random.normal(0.0,0.1,[self.config.layer2_size, self.config.hpo_size])), dtype=tf.float32)
+        last_layer_w_para = tf.get_variable('last_layer_w_para', initializer=init_w_para)
+
         init_b = tf.constant(np.abs(np.random.normal(0.0,0.1,[self.config.hpo_size])), dtype=tf.float32)
         last_layer_b = tf.get_variable('last_layer_b', initializer=init_b)
 
         self.layer4= tf.matmul(layer2, tf.nn.relu(last_layer_w))# + last_layer_b
+        self.layer4_para = tf.matmul(layer2, tf.nn.relu(last_layer_w_para))# + last_layer_b
         #self.layer4= (linear('sm_layer4', layer2, [self.config.layer2_size, self.config.hpo_size]))
         #self.layer4= tf.nn.tanh(linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
 
@@ -78,14 +82,13 @@ class NCRModel():
             #        tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
             self.score_layer =  tf.matmul(self.layer4, tf.transpose(self.ancestry_masks))
         else:
-            self.score_layer = (1-mixing_w) * self.layer4 + mixing_w * tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
+            self.score_layer = self.layer4_para + tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
             #self.score_layer =  tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
 
         self.pred = tf.nn.softmax(self.score_layer)
 
         if training:
-            l2_w = 0.0
+            l2_w = 0.0001
             self.loss = tf.reduce_mean(\
-                    tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w))
-
+                    tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
 

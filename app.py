@@ -7,7 +7,7 @@ app = Flask(__name__)
 ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
 textAnt = TextAnnotator(ant=ant)
 
-@app.route('/term_match/<string:querry>', methods=['GET'])
+@app.route('/term/<string:querry>', methods=['GET'])
 def get_task_phrase(querry):
     pquerry = querry.replace('+',' ')
     matches = ant.get_hp_id([pquerry], 10)[0]
@@ -19,7 +19,7 @@ def get_task_phrase(querry):
         res.append(tmp)
     return jsonify(res)
 
-@app.route('/text_annotate/<string:querry>', methods=['GET'])
+@app.route('/text/<string:querry>', methods=['GET'])
 def get_task_text(querry):
     pquerry = querry.replace('+',' ')
     matches = textAnt.process_text(pquerry, 0.5, True)
