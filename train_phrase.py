@@ -52,7 +52,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 			loss = 0
 		ii += 1
 
-def train(repdir, lr_init, lr_decay, config):
+def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 	print "Training..."
 
 	oboFile = open("data/hp.obo")
@@ -65,11 +65,10 @@ def train(repdir, lr_init, lr_decay, config):
 	
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
-	model = phrase_model.NCRModel(config, training=True, ancs_sparse = rd.sparse_ancestrs)
-        """
-	model = phrase_model.NCRModel(config, training=True)
-        sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
-        """
+        if use_sparse_matrix:
+            model = phrase_model.NCRModel(config, training=True, ancs_sparse = rd.sparse_ancestrs)
+        else:
+            model = phrase_model.NCRModel(config, training=True)
 
 	model_loss = model.loss
 
@@ -77,6 +76,8 @@ def train(repdir, lr_init, lr_decay, config):
 	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
 
 	sess.run(tf.initialize_all_variables())
+        if not use_sparse_matrix:
+            sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
 #	sess.run(tf.assign(model.word_embedding, rd.word2vec))
 #	sess.run(tf.assign(model.descendancy_masks, rd.ancestry_mask.T))
@@ -111,7 +112,7 @@ def train(repdir, lr_init, lr_decay, config):
 			print rd.names[x[0]], x[1]
 		if False and (epoch % 5 == 0):
 			saver.save(sess, repdir + '/training.ckpt') ## TODO
-		if True or (epoch % 5 == 0) or (epoch > 35):
+		if False and ((epoch>0 and epoch % 10 == 0) or (epoch > 25)):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 			print "Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
@@ -124,6 +125,7 @@ def train(repdir, lr_init, lr_decay, config):
 
 	saver.save(sess, repdir + '/training.ckpt') ## TODO
 	hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+        print "Accuracy on test set ::", float(hit)/total
 	return float(hit)/total
 
 
@@ -133,20 +135,28 @@ def main():
 	args = parser.parse_args()
 
 
-	lr_init = 0.0002
+	lr_init = 0.0005
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
 	config.batch_size = 128
 	board = gpu_access.get_gpu()
 	'''
-	for lr_init in [0.005, 0.01, 0.015, 0.02, 0.002]:
-		for lr_decay in [0.7, 0.8, 0.9]:
-			for batch_size in [32, 64, 128]:
-					testResultFile.write('lr_init: ' + str(lr_init) +\
-							'\tlr_decay: ' + str(lr_decay) +\
-							'\tbatch_size ' + str(batch_size) +\
-							'\taccuracy: '+ str(accuracy) +"\n")
+        for config.batch_size in [128, 256]:
+            for lr_init in [0.0002, 0.0005, 0.001]:
+                for config.hidden_size in [800, 1000]:
+                    for config.layer1_size in [config.hidden_size, 2*config.hidden_size]:
+                        for config.layer2_size in [config.hidden_size, 2*config.hidden_size]:
+                            with tf.device('/gpu:'+board):
+                                accuracy = train(args.repdir, lr_init, lr_decay, config)
+                            with open("grid_results.txt","a") as testResultFile:
+                                testResultFile.write('lr_init: ' + str(lr_init) +\
+                                            '\tlr_decay: ' + str(lr_decay) +\
+                                            '\tbatch_size ' + str(config.batch_size) +\
+                                            '\thidden_size ' + str(config.hidden_size) +\
+                                            '\tlayer1_size ' + str(config.layer1_size) +\
+                                            '\tlayer2_size ' + str(config.layer2_size) +\
+                                            '\taccuracy: '+ str(accuracy) +"\n")
 	'''
 	'''
 	for config.l1_size in [100, 200, 300]:

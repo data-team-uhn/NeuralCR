@@ -8,7 +8,7 @@ import cPickle as pickle
 from os import listdir
 from blist import sortedlist
 import time
-#import sent_accuracy
+import sent_accuracy
 
 class TextAnnotator:
 
@@ -21,28 +21,28 @@ class TextAnnotator:
 		return results
 
 	def process_phrase(self, phrases, count=1):
-		print phrases
+		#print phrases
 		ans_ncr = self.ant.get_hp_id(phrases, count)
-		print ans_ncr
+		#print ans_ncr
 		return ans_ncr
 
 	def process_sent(self, sent, threshold, filter_overlap=False):
 		tokens = sent.strip().split(" ")
 		ret = {}
+                candidates = []
 		for i,w in enumerate(tokens):
 			phrase = ""
-			candidates = []
 			for r in range(7):
 				if i+r >= len(tokens):
 					break
 				phrase += " " + tokens[i+r]
 				if len(phrase.strip()) > 0:
 					candidates.append(phrase.strip())
-			hp_ids = self.process_phrase(candidates, 1)
-			for i in range(len(hp_ids)):
-				if hp_ids[i][0][1] < threshold:
-					if (hp_ids[i][0][0] not in ret) or (hp_ids[i][0][1]<ret[hp_ids[i][0][0]][0]):
-						ret[hp_ids[i][0][0]] = (hp_ids[i][0][1], candidates[i])
+                hp_ids = self.process_phrase(candidates, 1)
+                for i in range(len(hp_ids)):
+                        if hp_ids[i][0][1] < threshold:
+                                if (hp_ids[i][0][0] not in ret) or (hp_ids[i][0][1]<ret[hp_ids[i][0][0]][0]):
+                                        ret[hp_ids[i][0][0]] = (hp_ids[i][0][1], candidates[i])
 		results = []
 		for hp_id in ret:
 			results.append([sent.index(ret[hp_id][1]), sent.index(ret[hp_id][1])+len(ret[hp_id][1]), hp_id, ret[hp_id][0]])
@@ -105,12 +105,10 @@ def main():
 	args = parser.parse_args()
 
 	sys.stderr.write("Initializing NCR...\n")
-	textAnt = TextAnnotator(args.repdir, "data/")
+	textAnt = TextAnnotator(args.repdir, datadir="data/")
 	sys.stderr.write("Done.\n")
-        '''
-	sent_accuracy.find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )], '../data/', textAnt.ant.rd)
+	sent_accuracy.find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.1, True )], 'labeled_sentences.p', textAnt.ant.rd)
 	exit()
-        '''
 
 	if args.input_dir is not None:
 		for f in listdir(args.input_dir):
