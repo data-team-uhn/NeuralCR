@@ -107,7 +107,7 @@ def main():
 	sys.stderr.write("Initializing NCR...\n")
 	textAnt = TextAnnotator(args.repdir, datadir="data/")
 	sys.stderr.write("Done.\n")
-	sent_accuracy.find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.1, True )], 'labeled_sentences.p', textAnt.ant.rd)
+	sent_accuracy.find_sent_accuracy(lambda text: [x[2] for x in textAnt.process_text(text, 0.5, True )], 'labeled_sentences.p', textAnt.ant.rd)
 	exit()
 
 	if args.input_dir is not None:

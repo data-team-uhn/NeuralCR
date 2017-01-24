@@ -112,7 +112,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 			print rd.names[x[0]], x[1]
 		if False and (epoch % 5 == 0):
 			saver.save(sess, repdir + '/training.ckpt') ## TODO
-		if False and ((epoch>0 and epoch % 10 == 0) or (epoch > 25)):
+		if ((epoch>0 and epoch % 10 == 0) or (epoch > 25)):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 			print "Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:

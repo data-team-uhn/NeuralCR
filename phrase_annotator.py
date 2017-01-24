@@ -21,6 +21,13 @@ class NeuralPhraseAnnotator:
 		#res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
 		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
 		res_querry = 1.0-self.sess.run(self.model.pred, feed_dict = querry_dict)
+                '''
+		res_querry = self.sess.run(self.model.gru_state, feed_dict = querry_dict)
+		print np.max(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
+		print np.min(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
+		print np.sum(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
+		print self.sess.run(self.model.layer2, feed_dict = querry_dict)
+                '''
 
 		results=[]
 		for s in range(len(querry)):
