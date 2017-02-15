@@ -14,14 +14,15 @@ import sys
 def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 	rd.reset_counter()
 	rd.reset_counter_by_concept()
+        
+
 
 	'''
-	batch = rd.read_batch(50, newConfig.comp_size)
-	batch_feed = {model.input_sequence : batch[0], model.input_sequence_lengths: batch[1], model.input_hpo_id:batch[2]}
-	print sess.run(model.new_loss, feed_dict = batch_feed).shape
+	batch = rd.read_batch(5)
+        batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
+        print sess.run(model.conv_layer2, feed_dict = batch_feed)[0,0,:]
 	exit()
 	'''
-
 	ii = 0
 	loss = 0
 	report_len = 20
@@ -100,7 +101,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(30):#, 40):
+        for epoch in range(50):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -112,9 +113,9 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 			print rd.names[x[0]], x[1]
 		if False and (epoch % 5 == 0):
 			saver.save(sess, repdir + '/training.ckpt') ## TODO
-		if ((epoch>0 and epoch % 10 == 0) or (epoch > 25)):
+                if ((epoch>0 and epoch % 10 == 0)): # or (epoch > 25)):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
-			print "Accuracy on test set ::", float(hit)/total
+			print "R@5 Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
 #			testResultFile.write(str(float(hit)/total)+"\n")
 		
@@ -123,9 +124,12 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-	saver.save(sess, repdir + '/training.ckpt') ## TODO
 	hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
-        print "Accuracy on test set ::", float(hit)/total
+        print "R@5 Accuracy on test set ::", float(hit)/total
+	hit, total = accuracy.find_phrase_accuracy(ant, samples, 1, False)
+        print "R@1 Accuracy on test set ::", float(hit)/total
+
+	saver.save(sess, repdir + '/training.ckpt') ## TODO
 	return float(hit)/total
 
 
