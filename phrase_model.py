@@ -50,7 +50,7 @@ class NCRModel():
             _, state = tf.nn.rnn(cell, mlp_inputs, tf.tile(init_state, [tf.shape(mlp_inputs[0])[0],1]), dtype=tf.float32, sequence_length=seq_length)
 #            _, state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_length)
             #_, state = tf.nn.rnn(cell, mlp_inputs, dtype=tf.float32, sequence_length=seq_length)
-            return state
+            return linear('gru_l',state, [self.config.hidden_size, self.config.layer3_size])
 
     def apply_meanpool(self, seq, seq_length):
         #filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.hidden_size], tf.float32, initializer=tf.random_normal_initializer(stddev=0.1))
@@ -90,8 +90,26 @@ class NCRModel():
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
         label = tf.one_hot(self.input_hpo_id, config.hpo_size)
 
-        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+        self.gru_state = tf.nn.l2_normalize(self.apply_rnn(self.input_sequence, self.input_sequence_lengths), dim=[1])
 #        self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
+
+
+        init_w_1 = tf.constant(np.random.normal(0.0,0.1,[self.config.hpo_size, self.config.layer1_size]), dtype=tf.float32)
+        layer1_w = tf.get_variable('mlayer1_w', initializer=init_w_1)
+        init_b = tf.constant((np.random.normal(0.0,0.1,[self.config.layer1_size])), dtype=tf.float32)
+        layer1_b = tf.get_variable('mlayer1_b', initializer=init_b)
+        layer1 = tf.nn.relu(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, layer1_w ) + layer1_b)
+        layer2 = tf.nn.relu(linear('mlayer2', layer1, [config.layer1_size, config.layer2_size]))
+        self.layer3 = tf.nn.l2_normalize(linear('mlayer3', layer2, [config.layer2_size, config.layer3_size]), dim=[1])
+
+        self.similarity = tf.matmul(self.gru_state, self.layer3, transpose_b=True)
+        self.pred = self.similarity
+#        self.pred = tf.nn.softmax(self.similarity)
+
+        #self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.similarity, label))
+        self.loss = tf.reduce_mean(tf.reduce_sum(tf.maximum(0.5 - tf.expand_dims(tf.reduce_sum(self.similarity*label, [1]),1) + self.similarity, 0.0), [-1]))
+        #self.loss = tf.reduce_mean(-self.config.hpo_size*tf.reduce_sum(self.similarity*label, [1]) + tf.reduce_sum(self.similarity, [1]))
+        return
 
         layer1 = tf.nn.relu(linear('sm_layer1', self.gru_state, [self.config.hidden_size, self.config.layer1_size]))
         self.layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)
@@ -105,11 +123,6 @@ class NCRModel():
         last_layer_w = tf.get_variable('last_layer_w', initializer=init_w)
 #        weights = last_layer_w
 
-        init_w_para = tf.constant(np.abs(np.random.normal(0.0,0.1,[self.config.layer2_size, self.config.hpo_size])), dtype=tf.float32)
-        last_layer_w_para = tf.get_variable('last_layer_w_para', initializer=init_w_para)
-
-        init_b = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size])), dtype=tf.float32)
-        last_layer_b = tf.get_variable('last_layer_b', initializer=init_b)
 
 #        self.layer4= (linear('sm_layer4', self.layer2, [self.config.layer2_size, self.config.hpo_size]))
         self.layer4= tf.matmul(self.layer2, (last_layer_w))  + last_layer_b

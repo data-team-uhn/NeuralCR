@@ -17,12 +17,12 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
         
 
 
-	'''
+        '''
 	batch = rd.read_batch(5)
         batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
-        print sess.run(model.conv_layer2, feed_dict = batch_feed)[0,0,:]
+        print sess.run(model.distances, feed_dict = batch_feed).shape
 	exit()
-	'''
+        '''
 	ii = 0
 	loss = 0
 	report_len = 20
@@ -113,7 +113,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 			print rd.names[x[0]], x[1]
 		if False and (epoch % 5 == 0):
 			saver.save(sess, repdir + '/training.ckpt') ## TODO
-                if ((epoch>0 and epoch % 10 == 0)): # or (epoch > 25)):
+                if ((epoch>0 and epoch % 5 == 0)): # or (epoch > 25)):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 			print "R@5 Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
@@ -136,15 +136,18 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
+	parser.add_argument('--gpu', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", type=int)
 	args = parser.parse_args()
 
 
-	lr_init = 0.0005
+	lr_init = 0.001
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
 	config.batch_size = 128
-	board = gpu_access.get_gpu()
+        if args.gpu is not None:
+            gpu_access.get_gpu(args.gpu)
+#	board = ':' #gpu_access.get_gpu()
 	'''
         for config.batch_size in [128, 256]:
             for lr_init in [0.0002, 0.0005, 0.001]:
@@ -179,8 +182,7 @@ def main():
 	train(args.repdir, lr_init, lr_decay, config)
 	return
 	'''
-	with tf.device('/gpu:'+board):
-		train(args.repdir, lr_init, lr_decay, config)
+        train(args.repdir, lr_init, lr_decay, config)
 
 if __name__ == "__main__":
 	main()
