@@ -144,7 +144,6 @@ def main():
 
 	config = phraseConfig.Config
 	config.batch_size = 128
-	board = gpu_access.get_gpu()
 	'''
         for config.batch_size in [128, 256]:
             for lr_init in [0.0002, 0.0005, 0.001]:
@@ -179,8 +178,7 @@ def main():
 	train(args.repdir, lr_init, lr_decay, config)
 	return
 	'''
-	with tf.device('/gpu:'+board):
-		train(args.repdir, lr_init, lr_decay, config)
+        train(args.repdir, lr_init, lr_decay, config)
 
 if __name__ == "__main__":
 	main()

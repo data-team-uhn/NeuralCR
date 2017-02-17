@@ -90,8 +90,8 @@ class NCRModel():
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
         label = tf.one_hot(self.input_hpo_id, config.hpo_size)
 
-        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
-#        self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
+#        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+        self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
 
         layer1 = tf.nn.relu(linear('sm_layer1', self.gru_state, [self.config.hidden_size, self.config.layer1_size]))
         self.layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)

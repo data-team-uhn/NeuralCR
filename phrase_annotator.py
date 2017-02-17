@@ -79,6 +79,7 @@ def main():
 	#ant = create_annotator("checkpoints/", "data/", False, False)
 	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
+        '''
 	while True:
 		sys.stdout.write("-----------\nEnter text:\n")
 		sys.stdout.flush()
@@ -100,15 +101,27 @@ def main():
 		for x in item:
 			print x[0], ant.rd.names[x[0]], x[1]
 	return
-	sample_data = open("cui_hpo_translations.csv").read().split("\n")
-	cui = [x.split(",")[0] for x in sample_data if len(x) > 0]
-	sample_data = [x.split(",")[1].replace('\"','') for x in sample_data if len(x) > 0]
-	results = ant.get_hp_id(sample_data, 5)
+        '''
+        import csv
+        input_csv = "cui-hpo-translations_20160822.csv"
+        output_csv = "cui-hpo-translations_20160822_results.csv"
+        '''
+        input_csv = "cui-hpo-translations_20170215.csv"
+        output_csv = "cui-hpo-translations_20170215_results.csv"
+        '''
+        
+        csvreader = csv.reader(open(input_csv))
+        sample_data =[x[1] for x in csvreader if len(x[1])>0]
+        csvreader = csv.reader(open(input_csv))
+        cui = [x[0] for x in csvreader if len(x[1])>0]
+        top_count = 3
+	results = ant.get_hp_id(sample_data, top_count)
+        csvwriter = csv.writer(open(output_csv, 'wb'))
 	for i,x in enumerate(cui):
-		sys.stdout.write(cui[i] + "," + sample_data[i]+ "," + ("%.4f" % results[i][0][1]))
-		for j in range(5):
-			sys.stdout.write("," + results[i][j][0] +"," + ant.rd.names[results[i][j][0]][0].replace(",","-"))
-		sys.stdout.write("\n")
+            row = [cui[i], sample_data[i], ("%.4f" % results[i][0][1])]
+            for j in range(top_count):
+                row += [results[i][j][0], ant.rd.names[results[i][j][0]][0].replace(",","-")]
+            csvwriter.writerow(row)
 
 
 if __name__ == "__main__":
