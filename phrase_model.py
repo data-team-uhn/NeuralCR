@@ -27,7 +27,8 @@ class NCRModel():
     def apply_rnn(self, seq, seq_length):
             #seq_embeded = tf.nn.embedding_lookup(self.word_embedding, seq)
 #		inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq_embeded)]
-            inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq)]
+            inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(seq, self.config.max_sequence_length, 1)]
+            #inputs = [tf.squeeze(input_, [1]) for input_ in tf.split(1, self.config.max_sequence_length, seq)]
             w1 = weight_variable('layer1W', [self.config.word_embed_size, self.config.hidden_size])
             b1 = weight_variable('layer1B', [self.config.hidden_size])
             w2 = weight_variable('layer2W', [self.config.hidden_size, self.config.hidden_size])
@@ -44,10 +45,12 @@ class NCRModel():
             '''
             mlp_inputs = [tf.nn.relu(tf.matmul(x, w1)+b1) for x in inputs]
             mlp_inputs = [tf.nn.relu(tf.matmul(x, w2)+b2) for x in mlp_inputs]
-            cell = tf.nn.rnn_cell.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
+            cell = tf.contrib.rnn.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
+            
             
             init_state = embedding_variable('rnn_init_state', [1,self.config.hidden_size])
-            _, state = tf.nn.rnn(cell, mlp_inputs, tf.tile(init_state, [tf.shape(mlp_inputs[0])[0],1]), dtype=tf.float32, sequence_length=seq_length)
+            _, state = tf.nn.dynamic_rnn(cell, seq, dtype=tf.float32, sequence_length=seq_length)
+            #_, state = tf.nn.dynamic_rnn(cell, mlp_inputs, tf.tile(init_state, [tf.shape(mlp_inputs[0])[0],1]), dtype=tf.float32, sequence_length=seq_length)
 #            _, state = tf.nn.rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_length)
             #_, state = tf.nn.rnn(cell, mlp_inputs, dtype=tf.float32, sequence_length=seq_length)
             return state
@@ -82,7 +85,7 @@ class NCRModel():
         if ancs_sparse is None:
             self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
         else:
-            ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), shape=[config.hpo_size, config.hpo_size]))
+            ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
 
         ### Inputs ###
         self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
@@ -90,8 +93,8 @@ class NCRModel():
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
         label = tf.one_hot(self.input_hpo_id, config.hpo_size)
 
-#        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
-        self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
+        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
+        #self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
 
         layer1 = tf.nn.relu(linear('sm_layer1', self.gru_state, [self.config.hidden_size, self.config.layer1_size]))
         self.layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)
@@ -149,5 +152,6 @@ class NCRModel():
         if training:
             l2_w = 0.0
             self.loss = tf.reduce_mean(\
-                    tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
+                    tf.losses.softmax_cross_entropy(label, self.score_layer)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
+                    #tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
 
