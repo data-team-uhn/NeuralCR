@@ -20,7 +20,7 @@ class NeuralPhraseAnnotator:
 		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len']}
 		#res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
 		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
-		res_querry = 1.0-self.sess.run(self.model.pred, feed_dict = querry_dict)
+		res_querry = self.sess.run(self.model.pred, feed_dict = querry_dict)
                 '''
 		res_querry = self.sess.run(self.model.gru_state, feed_dict = querry_dict)
 		print np.max(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
@@ -31,7 +31,7 @@ class NeuralPhraseAnnotator:
 
 		results=[]
 		for s in range(len(querry)):
-			indecies_querry = np.argsort(res_querry[s,:])
+			indecies_querry = np.argsort(-res_querry[s,:])
 			results.append(self.__get_top_concepts(indecies_querry, res_querry[s,:], count))
 
 		return results

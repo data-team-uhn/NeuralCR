@@ -17,12 +17,12 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
         
 
 
-	'''
+        '''
 	batch = rd.read_batch(5)
         batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
-        print sess.run(model.conv_layer2, feed_dict = batch_feed)[0,0,:]
+        print sess.run(model.last_layer1, feed_dict = batch_feed).shape
 	exit()
-	'''
+        '''
 	ii = 0
 	loss = 0
 	report_len = 20
@@ -101,7 +101,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(50):#, 40):
+        for epoch in range(25):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -113,9 +113,11 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 			print rd.names[x[0]], x[1]
 		if False and (epoch % 5 == 0):
 			saver.save(sess, repdir + '/training.ckpt') ## TODO
-                if ((epoch>0 and epoch % 10 == 0)): # or (epoch > 25)):
+                if ((epoch>0 and epoch % 5 == 0)): # or (epoch > 25)):
 			hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
 			print "R@5 Accuracy on test set ::", float(hit)/total
+                        hit, total = accuracy.find_phrase_accuracy(ant, samples, 1, False)
+                        print "R@1 Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
 #			testResultFile.write(str(float(hit)/total)+"\n")
 		

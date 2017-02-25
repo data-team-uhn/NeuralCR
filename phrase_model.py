@@ -76,6 +76,44 @@ class NCRModel():
         return tf.nn.l2_normalize(tf.reduce_sum(self.conv_layer2, [1]), dim=1)
         #return tf.reduce_sum(layer2, [1])
 
+
+    def encode(self, seq, seq_length):
+        embedding = self.apply_rnn(seq, seq_length)
+        #embedding = = self.apply_meanpool(seq, seq_length) 
+
+        layer1 = tf.nn.relu(linear('sm_layer1', embedding, [self.config.hidden_size, self.config.layer1_size]))
+#        self.layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
+        layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)
+#        self.layer3 = tf.nn.l2_normalize(linear('sm_layer3', self.layer2, [self.config.layer2_size, self.config.layer3_size]), dim=1)
+        return layer2
+
+    def get_score(self, embedding):
+        init_w1 = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size, 1024])), dtype=tf.float32)
+        last_layer_w1 = tf.get_variable('last_layer_w', initializer=init_w1)
+        init_b1 = tf.constant((np.random.normal(0.0,0.1,[1024])), dtype=tf.float32)
+        last_layer_b1 = tf.get_variable('last_layer_b', initializer=init_b1)
+
+        init_w1b = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size, 512])), dtype=tf.float32)
+        last_layer_w1b = tf.get_variable('last_layer_wb', initializer=init_w1)
+
+        self.last_layer1a = (tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, last_layer_w1) + last_layer_b1)
+        last_layer2 = self.last_layer1a
+        #last_layer2 = tf.nn.l2_normalize(self.last_layer1a, dim=1)
+#        self.last_layer1b =  tf.transpose(tf.sparse_tensor_dense_matmul(tf.sparse_transpose(self.ancestry_sparse_tensor), tf.transpose(last_layer_w1b)))
+#        self.last_layer1 =  tf.nn.relu(self.last_layer1a + self.last_layer1b + last_layer_b1)
+#        self.last_layer1 =  tf.nn.relu(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w1)))+last_layer_b1)
+#        last_layer2 =  tf.nn.l2_normalize(linear('last_layer2', self.last_layer1a, [1024, self.config.layer2_size] ), dim=1)
+
+        #last_layer2 =  tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w1)))
+#        proc_last_layer_w =  tf.nn.tanh(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w))))#, dim=0)
+        #proc_last_layer_w =  tf.nn.l2_normalize(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w))), dim=0)
+
+#        self.layer4= (linear('sm_layer4', self.layer2, [self.config.layer2_size, self.config.hpo_size]))
+        score_layer = tf.matmul(embedding, tf.transpose(last_layer2))#  + last_layer_b
+        return score_layer
+
+
+
     #############################
     ##### Creates the model #####
     #############################
@@ -85,7 +123,7 @@ class NCRModel():
         if ancs_sparse is None:
             self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
         else:
-            ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
+            self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
 
         ### Inputs ###
         self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
@@ -93,43 +131,17 @@ class NCRModel():
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
         label = tf.one_hot(self.input_hpo_id, config.hpo_size)
 
-        self.gru_state = self.apply_rnn(self.input_sequence, self.input_sequence_lengths) 
-        #self.gru_state = self.apply_meanpool(self.input_sequence, self.input_sequence_lengths) 
+        input_embedding = self.encode(self.input_sequence, self.input_sequence_lengths)
+        self.score_layer = self.get_score(input_embedding)
 
-        layer1 = tf.nn.relu(linear('sm_layer1', self.gru_state, [self.config.hidden_size, self.config.layer1_size]))
-        self.layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)
-        self.layer3 = tf.nn.relu(linear('sm_layer3', self.layer2, [self.config.layer2_size, self.config.layer3_size]))
-
-        layer1_para = tf.nn.relu(linear('sm_layer1_para', self.gru_state, [self.config.hidden_size, self.config.layer1_size]))
-        layer2_para = tf.nn.relu(linear('sm_layer2_para', layer1_para, [self.config.layer1_size, self.config.layer2_size]))
-#        layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
        
-        init_w = tf.constant((np.random.normal(0.0,0.1,[self.config.layer2_size, self.config.hpo_size])), dtype=tf.float32)
-        last_layer_w = tf.get_variable('last_layer_w', initializer=init_w)
-#        weights = last_layer_w
 
-        init_w_para = tf.constant(np.abs(np.random.normal(0.0,0.1,[self.config.layer2_size, self.config.hpo_size])), dtype=tf.float32)
-        last_layer_w_para = tf.get_variable('last_layer_w_para', initializer=init_w_para)
-
-        init_b = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size])), dtype=tf.float32)
-        last_layer_b = tf.get_variable('last_layer_b', initializer=init_b)
-
-#        self.layer4= (linear('sm_layer4', self.layer2, [self.config.layer2_size, self.config.hpo_size]))
-        self.layer4= tf.matmul(self.layer2, (last_layer_w))  + last_layer_b
-        self.layer4_para= (linear('sm_layer4_para', layer2_para, [self.config.layer2_size, self.config.hpo_size]))
-        #self.layer4_para = tf.matmul(layer2_para, tf.nn.relu(last_layer_w_para))# + last_layer_b
-        #self.layer4= (linear('sm_layer4', self.layer2, [self.config.layer2_size, self.config.hpo_size]))
-        #self.layer4= tf.nn.tanh(linear('sm_layer4', layer3, [self.config.layer3_size, self.config.hpo_size]))
-
-
-        #mixing_w = tf.Variable(1.0)
-        mixing_w= tf.nn.sigmoid(tf.Variable(0.0))
-       # self.score_layer = (mixing_w * self.layer4 +\
         '''
         self.score_layer = (mixing_w * self.layer4 + tf.minimum(self.layer4, tf.zeros_like(self.layer4)) +\
                 tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
         '''
         ### TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ancestry_sparse_matrix
+        '''
         if ancs_sparse is None:
             self.score_layer = (mixing_w * self.layer4 + tf.minimum(self.layer4, tf.zeros_like(self.layer4)) +\
                     tf.matmul(tf.maximum(self.layer4, tf.zeros_like(self.layer4)), tf.transpose(self.ancestry_masks)))
@@ -141,7 +153,10 @@ class NCRModel():
             self.score_layer = tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
 #            self.score_layer = mixing_w*self.layer4 + tf.transpose(tf.sparse_tensor_dense_matmul(ancestry_sparse_tensor, tf.transpose(self.layer4)))
 
+        '''
         self.pred = tf.nn.softmax(self.score_layer)
+        #self.pred = tf.nn.softmax(self.score_layer)
+        #self.pred = self.score_layer
         '''
         self.pred1 = tf.nn.softmax(self.score_layer)
         self.pred2 = tf.nn.softmax(self.layer4)
@@ -151,7 +166,7 @@ class NCRModel():
 
         if training:
             l2_w = 0.0
-            self.loss = tf.reduce_mean(\
-                    tf.losses.softmax_cross_entropy(label, self.score_layer)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
+            #self.loss = tf.reduce_mean(tf.reduce_sum(tf.maximum(1.0 - tf.expand_dims(tf.reduce_sum(self.score_layer*label, [1]),1) + self.score_layer, 0.0), [-1]))
+            self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label, self.score_layer)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
                     #tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
 
