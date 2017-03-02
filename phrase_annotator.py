@@ -79,7 +79,6 @@ def main():
 	#ant = create_annotator("checkpoints/", "data/", False, False)
 	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
-        '''
 	while True:
 		sys.stdout.write("-----------\nEnter text:\n")
 		sys.stdout.flush()
@@ -91,6 +90,7 @@ def main():
 		sys.stdout.write("\n")
 	
 	return
+        '''
 	print ant.get_hp_id(["kindey", "renal"],5)
 	print [ant.rd.names[x[0]] for x in  ant.get_hp_id(["kindey", "renal"],5)]
 	return

@@ -40,7 +40,7 @@ class TextAnnotator:
 					candidates.append(phrase.strip())
                 hp_ids = self.process_phrase(candidates, 1)
                 for i in range(len(hp_ids)):
-                        if hp_ids[i][0][1] < threshold:
+                        if hp_ids[i][0][1] > threshold:
                                 if (hp_ids[i][0][0] not in ret) or (hp_ids[i][0][1]<ret[hp_ids[i][0][0]][0]):
                                         ret[hp_ids[i][0][0]] = (hp_ids[i][0][1], candidates[i])
 		results = []

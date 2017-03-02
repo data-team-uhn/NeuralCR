@@ -6,6 +6,7 @@ import phrase_annotator
 import phraseConfig
 import tensorflow as tf
 import sys
+import requests
 
 class PhenotipsWrapper:
 	def get_hp_id(self, phrases, count=1):
@@ -26,15 +27,27 @@ def test_accuarcy_phrase():
 	rd = reader.Reader(oboFile)
 
 #	ant = phrase_annotator.create_annotator("checkpoints/", "data/", False, False)
-	ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
 	#ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = phrase_annotator.create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	
 	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
-#	ant = PhenotipsWrapper(rd)
+	samplesFile = open("data/labeled_data")
+	#ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
+	ant = PhenotipsWrapper(rd)
 
-	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
-	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 1, True)
+
+	training_samples = {}
+	for hpid in rd.names:
+            for s in rd.names[hpid]:
+                training_samples[s]=[hpid]
+
+	samples = accuracy.prepare_phrase_samples(rd, samplesFile, True)
+#	cor, tot = accuracy.find_phrase_accuracy(ant, training_samples, 5, True)
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+	print cor, tot
+	print float(cor)/tot
+
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 1, False)
 	print cor, tot
 	print float(cor)/tot
 

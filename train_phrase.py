@@ -89,7 +89,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 
 	samplesFile = open("data/labeled_data")
 	ant = phrase_annotator.NeuralPhraseAnnotator(model, rd, sess, False)
-	samples = accuracy.prepare_phrase_samples(rd, samplesFile)
+	samples = accuracy.prepare_phrase_samples(rd, samplesFile, True)
 
 	training_samples = {}
 	for hpid in rd.names:
@@ -101,7 +101,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(25):#, 40):
+        for epoch in range(40):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -126,20 +126,19 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		print "Accuracy on training set ::", float(hit)/total
 		'''
 
-	hit, total = accuracy.find_phrase_accuracy(ant, samples, 5, False)
-        print "R@5 Accuracy on test set ::", float(hit)/total
-	hit, total = accuracy.find_phrase_accuracy(ant, samples, 1, False)
-        print "R@1 Accuracy on test set ::", float(hit)/total
+	hit_5, total_5 = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+        print "R@5 Accuracy on test set ::", float(hit_5)/total_5
+	hit_1, total_1 = accuracy.find_phrase_accuracy(ant, samples, 1, False)
+        print "R@1 Accuracy on test set ::", float(hit_1)/total_1
 
 	saver.save(sess, repdir + '/training.ckpt') ## TODO
-	return float(hit)/total
+	return float(hit_5)/total_5, float(hit_1)/total_1
 
 
 def main():
 	parser = argparse.ArgumentParser(description='Hello!')
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
-
 
 	lr_init = 0.0005
 	lr_decay = 0.95
@@ -148,20 +147,23 @@ def main():
 	config.batch_size = 128
 	'''
         for config.batch_size in [128, 256]:
-            for lr_init in [0.0002, 0.0005, 0.001]:
-                for config.hidden_size in [800, 1000]:
+            for lr_init in [0.0005, 0.0002, 0.001]:
+                for config.hidden_size in [512, 1024]:
                     for config.layer1_size in [config.hidden_size, 2*config.hidden_size]:
                         for config.layer2_size in [config.hidden_size, 2*config.hidden_size]:
-                            with tf.device('/gpu:'+board):
+                            for config.alpha in [0.1, 0.2, 0.3, 0.5]:
+                                print "hi"
                                 accuracy = train(args.repdir, lr_init, lr_decay, config)
-                            with open("grid_results.txt","a") as testResultFile:
-                                testResultFile.write('lr_init: ' + str(lr_init) +\
-                                            '\tlr_decay: ' + str(lr_decay) +\
-                                            '\tbatch_size ' + str(config.batch_size) +\
-                                            '\thidden_size ' + str(config.hidden_size) +\
-                                            '\tlayer1_size ' + str(config.layer1_size) +\
-                                            '\tlayer2_size ' + str(config.layer2_size) +\
-                                            '\taccuracy: '+ str(accuracy) +"\n")
+                                with open("grid_results.txt","a") as testResultFile:
+                                    testResultFile.write('lr_init: ' + str(lr_init) +\
+                                                '\tlr_decay: ' + str(lr_decay) +\
+                                                '\tbatch_size ' + str(config.batch_size) +\
+                                                '\thidden_size ' + str(config.hidden_size) +\
+                                                '\tlayer1_size ' + str(config.layer1_size) +\
+                                                '\tlayer2_size ' + str(config.layer2_size) +\
+                                                '\talpha ' + str(config.alpha) +\
+                                                '\taccuracy: '+ str(accuracy) +"\n")
+        return
 	'''
 	'''
 	for config.l1_size in [100, 200, 300]:

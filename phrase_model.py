@@ -14,6 +14,15 @@ def linear(name, x, shape):
 #    b = weight_variable(name+"B", [shape[1]])
     return tf.matmul(x,w) + b
 
+def linear_sparse(name, x, shape):
+#    w = tf.get_variable(name+"W", shape, initializer=tf.contrib.layers.xavier_initializer())
+    w = tf.get_variable(name+"W", shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
+#    w = weight_variable(name+"W", shape)
+    b = tf.get_variable(name+"B", shape = shape[1], initializer = tf.random_normal_initializer(stddev=0.1))
+#    b = weight_variable(name+"B", [shape[1]])
+    return tf.sparse_tensor_dense_matmul(x,w) + b
+
+
 def embedding_variable(name, shape):
     return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
 
@@ -72,43 +81,57 @@ class NCRModel():
         self.conv_layer2 = tf.select(self.mask, self.conv_layer2, tf.zeros_like(self.conv_layer2))
 
 
-#        return tf.reduce_max(self.conv_layer2, [1])
-        return tf.nn.l2_normalize(tf.reduce_sum(self.conv_layer2, [1]), dim=1)
+        return tf.reduce_max(self.conv_layer2, [1])
+#        return tf.nn.l2_normalize(tf.reduce_sum(self.conv_layer2, [1]), dim=1)
         #return tf.reduce_sum(layer2, [1])
 
 
     def encode(self, seq, seq_length):
-        embedding = self.apply_rnn(seq, seq_length)
+        embed1 = self.apply_rnn(seq, seq_length)
+        #embed2 = tf.nn.tanh(linear('encode2', embed1, [self.config.hidden_size, self.config.layer1_size]))
+        #embed3 = linear('encode3', embed2, [self.config.layer1_size, self.config.layer2_size])
+        #return tf.nn.l2_normalize(embed3, dim=1)
+
         #embedding = = self.apply_meanpool(seq, seq_length) 
 
-        layer1 = tf.nn.relu(linear('sm_layer1', embedding, [self.config.hidden_size, self.config.layer1_size]))
+        layer1 = tf.nn.relu(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size]))
 #        self.layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
-        layer2 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size])), dim=1)
-#        self.layer3 = tf.nn.l2_normalize(linear('sm_layer3', self.layer2, [self.config.layer2_size, self.config.layer3_size]), dim=1)
-        return layer2
+        layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
+#        layer3 = tf.nn.tanh(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
+        layer3 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer3', layer1, [self.config.layer2_size, self.config.layer3_size])), dim=1)
+#        layer3 = tf.nn.relu(linear('sm_layer3', layer1, [self.config.layer2_size, self.config.layer3_size]))
+        return layer3
 
     def get_score(self, embedding):
-        init_w1 = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size, 1024])), dtype=tf.float32)
+        '''
+        init_w1 = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size, self.config.layer2_size])), dtype=tf.float32)
         last_layer_w1 = tf.get_variable('last_layer_w', initializer=init_w1)
-        init_b1 = tf.constant((np.random.normal(0.0,0.1,[1024])), dtype=tf.float32)
+        init_b1 = tf.constant((np.random.normal(0.0,0.1,[self.config.layer2_size])), dtype=tf.float32)
         last_layer_b1 = tf.get_variable('last_layer_b', initializer=init_b1)
 
         init_w1b = tf.constant((np.random.normal(0.0,0.1,[self.config.hpo_size, 512])), dtype=tf.float32)
         last_layer_w1b = tf.get_variable('last_layer_wb', initializer=init_w1)
+        '''
 
-        self.last_layer1a = (tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, last_layer_w1) + last_layer_b1)
-        last_layer2 = self.last_layer1a
+        #self.last_layer1a = (tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, last_layer_w1) + last_layer_b1)
+        #last_layer2 = self.last_layer1a
         #last_layer2 = tf.nn.l2_normalize(self.last_layer1a, dim=1)
 #        self.last_layer1b =  tf.transpose(tf.sparse_tensor_dense_matmul(tf.sparse_transpose(self.ancestry_sparse_tensor), tf.transpose(last_layer_w1b)))
 #        self.last_layer1 =  tf.nn.relu(self.last_layer1a + self.last_layer1b + last_layer_b1)
-#        self.last_layer1 =  tf.nn.relu(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w1)))+last_layer_b1)
-#        last_layer2 =  tf.nn.l2_normalize(linear('last_layer2', self.last_layer1a, [1024, self.config.layer2_size] ), dim=1)
+#        self.last_layer1 =  (linear_sparse('last_layer1', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer2_size]))
+        self.last_layer1 =  tf.nn.relu(linear_sparse('last_layer1', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer2_size]))
+        #self.last_layer1 =  tf.nn.tanh(linear_sparse('last_layer1', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer2_size]))
+        #last_layer2 = self.last_layer1
+        #self.last_layer1 =  tf.nn.relu(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, last_layer_w1)+last_layer_b1)
+        last_layer2 =  linear('last_layer2', self.last_layer1, [self.config.layer2_size, self.config.layer2_size] )
+#        last_layer2 =  tf.nn.l2_normalize(linear('last_layer2', self.last_layer1, [self.config.layer2_size, self.config.layer2_size] ), dim=1)
 
         #last_layer2 =  tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w1)))
 #        proc_last_layer_w =  tf.nn.tanh(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w))))#, dim=0)
         #proc_last_layer_w =  tf.nn.l2_normalize(tf.transpose(tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, tf.transpose(last_layer_w))), dim=0)
 
 #        self.layer4= (linear('sm_layer4', self.layer2, [self.config.layer2_size, self.config.hpo_size]))
+#        score_layer = linear('vanila', embedding, [self.config.layer2_size, self.config.hpo_size])#  + last_layer_b
         score_layer = tf.matmul(embedding, tf.transpose(last_layer2))#  + last_layer_b
         return score_layer
 
@@ -155,7 +178,6 @@ class NCRModel():
 
         '''
         self.pred = tf.nn.softmax(self.score_layer)
-        #self.pred = tf.nn.softmax(self.score_layer)
         #self.pred = self.score_layer
         '''
         self.pred1 = tf.nn.softmax(self.score_layer)
@@ -166,7 +188,7 @@ class NCRModel():
 
         if training:
             l2_w = 0.0
-            #self.loss = tf.reduce_mean(tf.reduce_sum(tf.maximum(1.0 - tf.expand_dims(tf.reduce_sum(self.score_layer*label, [1]),1) + self.score_layer, 0.0), [-1]))
+           # self.loss = tf.reduce_mean(tf.reduce_sum(tf.maximum(self.config.alpha - tf.expand_dims(tf.reduce_sum(self.score_layer*label, [1]),1) + self.score_layer, 0.0), [-1]))
             self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label, self.score_layer)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
                     #tf.nn.softmax_cross_entropy_with_logits(self.score_layer, label)) # + l2_w * tf.reduce_sum(tf.nn.relu(last_layer_w_para))
 
