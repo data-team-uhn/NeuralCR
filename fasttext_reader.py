@@ -17,7 +17,7 @@ def is_number(s):
         return False
 
 def tokenize(phrase):
-	tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').strip().split()
+	tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').replace('.', ' . ').strip().split()
 	return ["INT" if w.isdigit() else ("FLOAT" if is_number(w) else w) for w in tmp]
 
 def dfs(c, kids, mark):
@@ -82,6 +82,16 @@ def read_oboFile(oboFile, topid=None):
 #	print len(total_names)
 	return names, kids, parents, real_id, def_text
 
+def create_negatives(text, num):
+    neg_tokens = tokenize(text)
+
+    indecies = np.random.choice(len(neg_tokens), num)
+    lengths = np.random.randint(1, 10, num)
+
+    negative_phrases = [' '.join(neg_tokens[indecies[i]:indecies[i]+lengths[i]])
+                                for i in range(num)]
+    return negative_phrases
+
 
 class Reader:
 
@@ -99,6 +109,8 @@ class Reader:
 		ids = np.array( [self.word2id[w] if w in self.word2id else self.word2id[self.unkown_term] for w in tokens] )
 
 		return ids #, None
+
+
 
 	def phrase2vec(self, phrase):
 		tokens = tokenize(phrase)[:self.max_length-1]
@@ -132,10 +144,13 @@ class Reader:
 
 
 
-	def __init__(self, oboFile):
+	def __init__(self, oboFile, include_negs=False):
+                self.include_negs = include_negs
 		## Create word to id
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
 		self.word_embed_size = 100
+
+                
 
 		print "loading word model..."
 		self.word_model = fasttext.load_model('data/model_pmc.bin')
@@ -183,6 +198,29 @@ class Reader:
                 for cid in self.ancestrs:
                     #self.sparse_ancestrs += [[ancid, cid] for ancid in self.ancestrs[cid]]
                     self.sparse_ancestrs += [[cid, ancid] for ancid in self.ancestrs[cid]]
+
+
+                if self.include_negs:
+                    ub_names, ub_kids, ub_parents, ub_real_id, ub_def_text = read_oboFile(open('data/uberon.obo'), "UBERON:0000062")
+                    self.ub_negs = [x for concept in ub_names for x in ub_names[concept]]
+                    ub_names2, ub_kids, ub_parents, ub_real_id, ub_def_text = read_oboFile(open('data/uberon.obo'), "UBERON:0000064")
+                    self.ub_negs += [x for concept in ub_names2 for x in ub_names2[concept]]
+                    none_id = len(self.concepts)
+                    self.concepts.append('HP:None')
+                    self.names['HP:None']=['None']
+                    
+                    wiki_text = open('wiki_text').read()
+                    raw_negs = create_negatives(wiki_text[:10000000], 10000)
+                    raw_negs += self.ub_negs
+
+                    self.neg_samples = []
+                    self.sparse_ancestrs.append([none_id, none_id])
+                    for x in raw_negs:
+                        self.neg_samples.append((self.phrase2vec(x), [none_id], 'neg'))
+
+                    self.samples += self.neg_samples
+
+
 
 
 
@@ -309,7 +347,7 @@ class Reader:
 			sequences[i,:sequence_lengths[i]] = s[0]
 		hpo_id = np.array([s[1][0] if len(s[1])>0 else 0 for s in raw_batch])
 
-		type_to_id = {'name':0, 'def_text':1}
+                type_to_id = {'name':0, 'def_text':1, 'neg':2}
 		type_id = np.array([type_to_id[s[2]] for s in raw_batch])
 
 		self.counter = ending
@@ -325,7 +363,11 @@ def main():
 	oboFile=open("data/hp.obo")
 	vectorFile=open("data/vectors.txt")
 #        vectorFile=open("train_data_gen/test_vectors.txt")
-	reader = Reader(oboFile)
+	reader = Reader(oboFile, True)
+        print reader.concept2id['HP:0000246']
+        exit()
+        print reader.read_batch(10)
+        return
         print (reader.sparse_ancestrs)
         print len(reader.sparse_ancestrs)
         print np.sum(reader.ancestry_mask)

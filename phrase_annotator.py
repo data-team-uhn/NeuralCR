@@ -10,14 +10,20 @@ class NeuralPhraseAnnotator:
 	def __get_top_concepts(self, indecies_querry, res_querry, count):
 		tmp_res = []
 		for i in indecies_querry:
-			tmp_res.append((self.rd.concepts[i],res_querry[i]))
+                        '''
+                        print i
+                        if i == len(self.rd.concepts):
+                            tmp_res.append(('None',res_querry[i]))
+                        else:
+                        '''
+                        tmp_res.append((self.rd.concepts[i],res_querry[i]))
 			if len(tmp_res)>=count:
 				break
 		return tmp_res
 
 	def get_hp_id(self, querry, count=1):
 		inp = self.rd.create_test_sample(querry)
-		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len']}
+		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len'], self.model.phase:0}
 		#res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
 		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
 		res_querry = self.sess.run(self.model.pred, feed_dict = querry_dict)
@@ -57,13 +63,13 @@ class NeuralPhraseAnnotator:
 #			self.querry_distances = 0\
 		#					+ self.model.order_dis_cartesian(self.model.get_HPO_embedding(), self.model.gru_state)
 
-def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=False):
+def create_annotator(repdir, datadir=None, compWithPhrases = False, include_negatives=False):
 	if datadir is None:
 		datadir = repdir
 	oboFile = open(datadir+"/hp.obo")
 	vectorFile = open(datadir+"/vectors.txt")
 
-	rd = reader.Reader(oboFile) #, vectorFile, addNull)
+	rd = reader.Reader(oboFile, include_negatives) #, vectorFile, addNull)
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 
@@ -77,7 +83,7 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, addNull=Fals
 
 def main():
 	#ant = create_annotator("checkpoints/", "data/", False, False)
-	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
+	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, True)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
 	while True:
 		sys.stdout.write("-----------\nEnter text:\n")
@@ -86,7 +92,12 @@ def main():
 		sys.stdout.write("\n")
 		matches = ant.get_hp_id([text],15)
 		for x in matches[0]:
-			sys.stdout.write(x[0]+' '+str(ant.rd.names[x[0]])+' '+str(x[1])+'\n')
+                        '''
+                        if x[0] == 'None':
+                            sys.stdout.write(x[0]+' '+str('None')+' '+str(x[1])+'\n')
+                        else:
+                        '''
+                        sys.stdout.write(x[0]+' '+str(ant.rd.names[x[0]])+' '+str(x[1])+'\n')
 		sys.stdout.write("\n")
 	
 	return

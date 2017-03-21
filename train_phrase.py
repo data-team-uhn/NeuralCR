@@ -9,9 +9,10 @@ import phrase_annotator
 import gpu_access
 import numpy as np
 import sys
+import h5py
 
 
-def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
+def run_epoch(sess, model, train_step, model_loss, rd, config):
 	rd.reset_counter()
 	rd.reset_counter_by_concept()
         
@@ -20,7 +21,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
         '''
 	batch = rd.read_batch(5)
         batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']}
-        print sess.run(model.last_layer1, feed_dict = batch_feed).shape
+        print sess.run(model.z, feed_dict = batch_feed)[:1]
 	exit()
         '''
 	ii = 0
@@ -32,7 +33,7 @@ def run_epoch(sess, model, train_step, model_loss, rd, saver, config):
 		if ii == 10000000 or batch == None:
 			break
 		#print np.array(batch['hp_id']).T[0]
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id']} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.phase:True} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		'''
@@ -74,9 +75,15 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 	model_loss = model.loss
 
 	lr = tf.Variable(0.02, trainable=False)
-	train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+#        with tf.control_dependencies(update_ops):
+        train_step = tf.train.AdamOptimizer(lr).minimize(model_loss)
+
+	h5f = h5py.File('plot_data.h5', 'r')
+	z = np.array(h5f['z'])
 
 	sess.run(tf.initialize_all_variables())
+        sess.run(tf.assign(model.z, z))
         if not use_sparse_matrix:
             sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
@@ -107,7 +114,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
-		run_epoch(sess, model, train_step, model_loss, rd, saver, config)
+		run_epoch(sess, model, train_step, model_loss, rd, config)
 		for x in ant.get_hp_id(['retina cancer'], 10)[0]:
 		#for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
 			print rd.names[x[0]], x[1]

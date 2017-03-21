@@ -32,8 +32,8 @@ def test_accuarcy_phrase():
 	
 	#ant = phrase_annotator.create_annotator("checkpoints_backup/", "data/", True, False)
 	samplesFile = open("data/labeled_data")
-	#ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
-	ant = PhenotipsWrapper(rd)
+	ant = phrase_annotator.create_annotator("checkpoints", "data/", True, False)
+#	ant = PhenotipsWrapper(rd)
 
 
 	training_samples = {}
