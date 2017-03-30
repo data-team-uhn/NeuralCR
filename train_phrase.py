@@ -60,7 +60,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 	oboFile = open("data/hp.obo")
 	vectorFile = open("data/vectors.txt")
 	tf.reset_default_graph()
-	rd = reader.Reader(oboFile) #, vectorFile)
+	rd = reader.Reader(oboFile, False) #, vectorFile)
 	print "reader inited"
 	#rd.init_uberon_list()
 	config.update_with_reader(rd)
@@ -108,7 +108,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(40):#, 40):
+        for epoch in range(20):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))

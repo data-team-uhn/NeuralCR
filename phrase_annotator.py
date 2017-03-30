@@ -83,9 +83,10 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, include_nega
 
 def main():
 	#ant = create_annotator("checkpoints/", "data/", False, False)
-	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, True)
+	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
 	while True:
+                break
 		sys.stdout.write("-----------\nEnter text:\n")
 		sys.stdout.flush()
 		text = sys.stdin.readline()
@@ -100,7 +101,7 @@ def main():
                         sys.stdout.write(x[0]+' '+str(ant.rd.names[x[0]])+' '+str(x[1])+'\n')
 		sys.stdout.write("\n")
 	
-	return
+	#return
         '''
 	print ant.get_hp_id(["kindey", "renal"],5)
 	print [ant.rd.names[x[0]] for x in  ant.get_hp_id(["kindey", "renal"],5)]
@@ -114,8 +115,8 @@ def main():
 	return
         '''
         import csv
-        input_csv = "cui-hpo-translations_20160822.csv"
-        output_csv = "cui-hpo-translations_20160822_results.csv"
+        input_csv = "cui-unique_20170227.csv"
+        output_csv = "cui-unique_20170227_results.csv"
         '''
         input_csv = "cui-hpo-translations_20170215.csv"
         output_csv = "cui-hpo-translations_20170215_results.csv"

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import h5py
 from matplotlib.animation import FuncAnimation
 import numpy as np
+import fasttext_reader as reader
 
 def plot(vis_data, y):
 	
@@ -19,7 +20,7 @@ def plot(vis_data, y):
 #	ax = fig.add_subplot(111)
 
 
-	plt.scatter(vis_x, vis_y, c=y) #, cmap=plt.cm.get_cmap("jet", 10))
+	plt.scatter(vis_x, vis_y, c=y, cmap=plt.cm.get_cmap("jet", np.max(y)))
 	#ax.plot(vis_x, vis_y, lw=0.01) #, c=y)
 	#plt.xlabel(r'$\displaystyle l_0$', fontsize=12)
 	#plt.ylabel(r'$l_1$', fontsize=12)
@@ -53,11 +54,22 @@ def animate_plot(vis_data):
 	plt.show()
 
 def main():
+	oboFile = open("data/hp.obo")
+	rd = reader.Reader(oboFile, False) #, vectorFile)
+        y = np.zeros(len(rd.concepts))
+        top_terms = ["HP:0000478"]
+        top_terms = rd.kids["HP:0000118"]
+        top_term_ids = [rd.concept2id[x] for x in top_terms]
+        for h_id in range(len(rd.concepts)):
+            for i,top_id in enumerate(top_term_ids):
+                if rd.ancestry_mask[h_id, top_id] == 1:
+                    y[h_id] = i+1
+
 	#h5f = h5py.File('plot_data_rnn.h5', 'r')
 	h5f = h5py.File('plot_data.h5', 'r')
 	z = np.array(h5f['z'])
 	#z = np.squeeze(z)
-	y = np.array(h5f['y'])
+	#y = np.array(h5f['y'])
 	#y = 1.0*np.array(range(z.shape[0]))/z.shape[0]
 	h5f.close()
 

@@ -76,6 +76,7 @@ class TextAnnotator:
 			return results
 
 	def process_text(self, text, threshold=0.5, filter_overlap=False):
+            '''
 		sents = text.split(".")
 		ans = []
 		total_chars=0
@@ -88,7 +89,7 @@ class TextAnnotator:
 			final_results += results
 			total_chars += len(sent)+1
 		final_results = sorted(final_results, key=lambda x : x[0])
-		return final_results
+            '''
 
 	def __init__(self, repdir=None, ant=None, datadir=None, addNull=False):
             if ant == None:

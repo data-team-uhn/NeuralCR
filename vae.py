@@ -26,7 +26,7 @@ class Config:
 	hidden_size = 1024
 	fc_size = 1024
 	read_size = 100
-	z_dim = 16
+	z_dim = 128
         learning_rate = 0.001
 	lr_decay = 0.95
 	batch_size = 11442
@@ -79,7 +79,7 @@ class NGA:
 
 	def reconstr_loss(self):
             return -tf.reduce_sum(self.x * tf.log(1e-10 + self.x_recon_theta) +\
-                                    (1-self.x)*tf.log(1e-10 +1.0 - self.x_recon_theta), 1)
+                                    (1-self.x)*tf.log(1e-10 + (1.0 - self.x_recon_theta)), 1)
 
 
 	def create_loss(self):
@@ -106,7 +106,6 @@ class NGA:
 
 		#X = np.expand_dims(X, 1)
 		#print np.sum(self.sess.run(self.z, feed_dict={self.x: X}))
-                #print "--"
                 '''
 		print np.min(self.sess.run(self.x_recon_theta, feed_dict={self.x: X}))
 		print np.sum(self.sess.run(self.x_recon_theta, feed_dict={self.x: X}))
@@ -114,9 +113,11 @@ class NGA:
 		print np.sum(self.sess.run(self.recon_loss, feed_dict={self.x: X}))
                 '''
                 '''
+                print "--"
 		print [np.sum(outp) for outp in self.sess.run(\
-                        [self.recon_loss, self.x_recon_theta, tf.log(1e-10 + self.x_recon_theta), tf.log(1e-10 +1.0 - self.x_recon_theta)]\
-                    , feed_dict={self.x: X})]
+                        [self.recon_loss, self.latent_loss, self.z_log_sigma_sq] #, self.x_recon_theta, tf.log(1e-10 + self.x_recon_theta), tf.log(1e-10 + (1.0 - self.x_recon_theta)), 1e-10 +(1.0 - self.x_recon_theta)]\
+                    , feed_dict={self.x: X,
+                        self.eps: np.random.normal(size=[X.shape[0],self.config.z_dim])})]
                 '''
 		#print np.sum(self.sess.run(self.latent_loss, feed_dict={self.x: X}))
 		opt, cost, recon_loss = self.sess.run((self.optimizer, self.cost, tf.reduce_mean(self.recon_loss)), 
@@ -165,7 +166,7 @@ def train(nga, rd):
 	display_step = 5
         data = np.concatenate((rd.ancestry_mask, rd.ancestry_mask.T), axis=1)
 
-	for epoch in range(200):
+	for epoch in range(500):
                 np.random.shuffle(data)
 		total_cost = 0.
 		total_recon_loss = 0.
@@ -196,6 +197,8 @@ def train(nga, rd):
 				"cost=", total_cost/count, \
 				"recon loss=", total_recon_loss/count
 			sys.stdout.flush()
+		if  epoch > 0 and epoch % 100 == 0:
+                    create_sample_for_plot(nga, rd)
 
 #	nga.save('checkpoints')
 
