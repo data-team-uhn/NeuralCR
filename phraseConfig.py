@@ -2,9 +2,15 @@ class Config:
 	batch_size = 128
 	hidden_size = 1024
 
-        layer1_size = 2048
-        layer2_size = 2048
-        layer3_size = 2048
+        layer1_size = 512
+        layer2_size = 256
+        layer3_size = 256
+
+        dec_layer1_size = 256
+        dec_layer2_size = 512
+        dec_layer3_size = 1024
+
+        z_dim = 16
         alpha = 0.2
 
 	@staticmethod

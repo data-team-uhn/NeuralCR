@@ -12,7 +12,7 @@ import sys
 import h5py
 
 
-def run_epoch(sess, model, train_step, model_loss, rd, config):
+def run_epoch(sess, model, alpha, train_step, model_loss, rd, config):
 	rd.reset_counter()
 	rd.reset_counter_by_concept()
         
@@ -33,7 +33,9 @@ def run_epoch(sess, model, train_step, model_loss, rd, config):
 		if ii == 10000000 or batch == None:
 			break
 		#print np.array(batch['hp_id']).T[0]
-		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.phase:True} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
+		batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'],
+                        model.eps: np.random.normal(size=[batch['seq'].shape[0], config.z_dim]),
+                        model.alpha:alpha ,model.phase:True} #, model.input_hpo_id_unique:batch['hp_id']} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 		#batch_feed = {model.input_sequence : batch['seq'], model.input_sequence_lengths: batch['seq_len'], model.input_hpo_id:batch['hp_id'], model.input_hpo_id_unique:np.array(list(set(batch['hp_id'])))} #, model.set_loss_for_input:True, model.set_loss_for_def:False}
 
 		'''
@@ -83,7 +85,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 	z = np.array(h5f['z'])
 
 	sess.run(tf.initialize_all_variables())
-        sess.run(tf.assign(model.z, z))
+#        sess.run(tf.assign(model.z, z))
         if not use_sparse_matrix:
             sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
@@ -108,13 +110,15 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(20):#, 40):
+        for epoch in range(50):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
-		run_epoch(sess, model, train_step, model_loss, rd, config)
+		alpha = 1.0 - np.exp(-max(epoch-10,0)/10.0)
+                alpha = (np.exp(epoch/50.0)-1.0)/(np.exp(1.0)-1)
+		run_epoch(sess, model, alpha, train_step, model_loss, rd, config)
 		for x in ant.get_hp_id(['retina cancer'], 10)[0]:
 		#for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
 			print rd.names[x[0]], x[1]
@@ -147,7 +151,8 @@ def main():
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 
-	lr_init = 0.0005
+#	lr_init = 0.0005
+	lr_init = 0.001
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
@@ -189,7 +194,7 @@ def main():
 	train(args.repdir, lr_init, lr_decay, config)
 	return
 	'''
-        train(args.repdir, lr_init, lr_decay, config)
+        train(args.repdir, lr_init, lr_decay, config, False)
 
 if __name__ == "__main__":
 	main()

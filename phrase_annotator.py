@@ -23,7 +23,8 @@ class NeuralPhraseAnnotator:
 
 	def get_hp_id(self, querry, count=1):
 		inp = self.rd.create_test_sample(querry)
-		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len'], self.model.phase:0}
+		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len'], self.model.phase:0,\
+                        self.model.eps: np.random.normal(size=[inp['seq'].shape[0], self.model.config.z_dim])}
 		#res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
 		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
 		res_querry = self.sess.run(self.model.pred, feed_dict = querry_dict)
@@ -73,7 +74,7 @@ def create_annotator(repdir, datadir=None, compWithPhrases = False, include_nega
 	config = phraseConfig.Config
 	config.update_with_reader(rd)
 
-	model = phrase_model.NCRModel(config, ancs_sparse = rd.sparse_ancestrs)
+	model = phrase_model.NCRModel(config) #, ancs_sparse = rd.sparse_ancestrs)
 
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 	saver = tf.train.Saver()
@@ -86,7 +87,6 @@ def main():
 	ant = create_annotator("/ais/gobi4/arbabi/codes/NeuralCR/checkpoints", "data/", True, False)
 	#ant = create_annotator("checkpoints_backup/", "data/", True, False)
 	while True:
-                break
 		sys.stdout.write("-----------\nEnter text:\n")
 		sys.stdout.flush()
 		text = sys.stdin.readline()

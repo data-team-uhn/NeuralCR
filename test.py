@@ -43,7 +43,7 @@ def test_accuarcy_phrase():
 
 	samples = accuracy.prepare_phrase_samples(rd, samplesFile, True)
 #	cor, tot = accuracy.find_phrase_accuracy(ant, training_samples, 5, True)
-	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, False)
+	cor, tot = accuracy.find_phrase_accuracy(ant, samples, 5, True)
 	print cor, tot
 	print float(cor)/tot
 
