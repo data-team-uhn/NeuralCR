@@ -63,21 +63,22 @@ class NCRModel():
     def encode(self, seq, seq_length):
         ################ Experiment with the design here:
         embed1 = self.apply_meanpool(seq, seq_length)
-        layer1 = tf.nn.tanh(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size], self.phase))
-        layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size], self.phase))
-        #layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
+        layer1 = tf.nn.softplus(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size], self.phase))
+        layer2 = tf.nn.softplus(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size], self.phase))
+        layer3 = tf.nn.softplus(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase))
 
-        z_mean = linear('mean', layer2, (self.config.layer2_size, self.config.z_dim))
+        z_mean = linear('mean', layer3, (self.config.layer3_size, self.config.z_dim))
         #z_log_sigma_sq = linear('sigma', layer2, (self.config.layer2_size, self.config.z_dim))
-        z_sigma_sq = tf.nn.softplus(linear('sigma', layer2, (self.config.layer2_size, self.config.z_dim)))
+        z_sigma_sq = tf.nn.softplus(linear('sigma', layer3, (self.config.layer3_size, self.config.z_dim)))
 
         return (z_mean, z_sigma_sq)
 
     def decode(self):
-        layer1 = tf.nn.tanh(linear('dec_layer1', self.z, [self.config.z_dim, self.config.dec_layer1_size], self.phase))
-        layer2 = tf.nn.tanh(linear('dec_layer2', layer1, [self.config.dec_layer1_size, self.config.dec_layer2_size], self.phase))
-        layer3 = tf.nn.tanh(linear('dec_layer3', layer2, [self.config.dec_layer2_size, self.config.dec_layer3_size], self.phase))
-        recon_y = tf.nn.sigmoid(linear('dec_recon', layer3, [self.config.dec_layer3_size, self.config.hpo_size], self.phase))
+        layer1 = tf.nn.softplus(linear('dec_layer1', self.z, [self.config.z_dim, self.config.dec_layer1_size], self.phase))
+        layer2 = tf.nn.softplus(linear('dec_layer2', layer1, [self.config.dec_layer1_size, self.config.dec_layer2_size], self.phase))
+        layer3 = tf.nn.softplus(linear('dec_layer3', layer2, [self.config.dec_layer2_size, self.config.dec_layer3_size], self.phase))
+        recon_y = tf.nn.sigmoid(linear('dec_recon', layer3, [self.config.dec_layer3_size, 2*self.config.hpo_size], self.phase))
+        #recon_y = tf.nn.sigmoid(linear('dec_recon', layer3, [self.config.dec_layer3_size, self.config.hpo_size], self.phase))
 
         return recon_y
 
@@ -109,9 +110,10 @@ class NCRModel():
         self.reconstr_loss = \
                         -tf.reduce_sum(self.x * tf.log(1e-10 + self.x_recon_theta) ,[1,2,3])
         '''
-
-        pred_log = tf.matmul(tf.log(1e-10 + self.y_recon_theta), self.ancestry_masks, transpose_b=True) +\
-                tf.matmul(tf.log(1e-10 + (1.0 - self.y_recon_theta)), 1-self.ancestry_masks, transpose_b=True)
+        
+        data = tf.concat([self.ancestry_masks, tf.transpose(self.ancestry_masks)], axis=1)
+        pred_log = tf.matmul(tf.log(1e-10 + self.y_recon_theta), data, transpose_b=True) +\
+                tf.matmul(tf.log(1e-10 + (1.0 - self.y_recon_theta)), 1-data, transpose_b=True)
         self.pred = tf.nn.softmax(pred_log)       
 
         self.recon_loss = tf.nn.softmax_cross_entropy_with_logits(logits=pred_log, labels=self.label)

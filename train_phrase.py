@@ -110,14 +110,14 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(50):#, 40):
+        for epoch in range(60):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
 		sess.run(tf.assign(lr, lr_new))
 
-		alpha = 1.0 - np.exp(-max(epoch-10,0)/10.0)
-                alpha = (np.exp(epoch/50.0)-1.0)/(np.exp(1.0)-1)
+		alpha = 0.0 # min(1.0, epoch/40.0)
+		#alpha = min(1.0, epoch/40.0)
 		run_epoch(sess, model, alpha, train_step, model_loss, rd, config)
 		for x in ant.get_hp_id(['retina cancer'], 10)[0]:
 		#for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
@@ -152,7 +152,7 @@ def main():
 	args = parser.parse_args()
 
 #	lr_init = 0.0005
-	lr_init = 0.001
+	lr_init = 0.0002
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
