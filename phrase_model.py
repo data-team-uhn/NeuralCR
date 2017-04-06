@@ -63,9 +63,10 @@ class NCRModel():
     def encode(self, seq, seq_length):
         ################ Experiment with the design here:
         embed1 = self.apply_meanpool(seq, seq_length)
-        layer1 = tf.nn.tanh(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size], self.phase))
-        layer2 = tf.nn.tanh(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size], self.phase))
-        layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
+        layer1 = tf.nn.relu(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size], self.phase))
+        layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size], self.phase))
+        #layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
+        layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase))
         #layer3 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase)), dim=1)
         return layer3
 
@@ -86,7 +87,8 @@ class NCRModel():
         last_layer2 = self.last_layer1
         score_layer = tf.matmul(embedding, tf.transpose(last_layer2))#  + last_layer_b
         '''
-        score_layer = tf.reduce_sum(embedding*embedding, axis=1, keep_dims=True) + tf.transpose(tf.reduce_sum(self.z*self.z, axis=1, keep_dims=True)) -2*tf.matmul(embedding, self.z, transpose_b=True)
+        #score_layer = tf.reduce_sum(embedding*embedding, axis=1, keep_dims=True) + tf.transpose(tf.reduce_sum(self.z*self.z, axis=1, keep_dims=True)) -2*tf.matmul(embedding, self.z, transpose_b=True)
+        score_layer = linear('last_layer', embedding, [self.config.layer3_size, self.config.hpo_size]) 
         return score_layer
 
     #############################
@@ -101,7 +103,7 @@ class NCRModel():
             self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
 
         ### Inputs ###
-        self.z = tf.get_variable("ancestry_z", [config.hpo_size, 128], trainable=False)
+#        self.z = tf.get_variable("ancestry_z", [config.hpo_size, 128], trainable=False)
         self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
         self.input_sequence = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
@@ -111,7 +113,7 @@ class NCRModel():
 
         input_embedding = self.encode(self.input_sequence, self.input_sequence_lengths)
 
-        self.score_layer = -self.get_score(input_embedding)
+        self.score_layer = self.get_score(input_embedding)
         self.pred = tf.nn.softmax(self.score_layer)
         self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label, self.score_layer)) 
         return

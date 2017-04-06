@@ -27,7 +27,7 @@ def prepare_phrase_samples(rd, samplesFile, filter_flag=False):
 
 def find_phrase_accuracy(ant, samples, top_size=None, verbose=False):
 	header = 0
-	batch_size = 64
+	batch_size = 512
 
 	hit=[0]*top_size
 	nohit=0
@@ -35,8 +35,8 @@ def find_phrase_accuracy(ant, samples, top_size=None, verbose=False):
 	while header < len(samples):
 		batch = {x:samples[x] for x in samples.keys()[header:min(header+batch_size, len(samples))]}
 		header += batch_size
-		#results = ant.get_hp_id(batch.keys(), top_size)
-		results = ant.get_hp_id(batch.keys(), 50000)
+		results = ant.get_hp_id(batch.keys(), top_size)
+		#results = ant.get_hp_id(batch.keys(), 50000)
 		#results = self.get_hp_id(batch.keys(),top_size)
 		for i,s in enumerate(batch):
 			hashit = False

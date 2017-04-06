@@ -83,7 +83,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 	z = np.array(h5f['z'])
 
 	sess.run(tf.initialize_all_variables())
-        sess.run(tf.assign(model.z, z))
+#        sess.run(tf.assign(model.z, z))
         if not use_sparse_matrix:
             sess.run(tf.assign(model.ancestry_masks, rd.ancestry_mask))
 	##C
@@ -108,7 +108,7 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
 		testResultFile.write("")
 
 	##C
-        for epoch in range(20):#, 40):
+        for epoch in range(25):#, 40):
 		print "epoch ::", epoch
 
 		lr_new = lr_init * (lr_decay ** max(epoch-4.0, 0.0))
@@ -127,6 +127,9 @@ def train(repdir, lr_init, lr_decay, config, use_sparse_matrix=True):
                         print "R@1 Accuracy on test set ::", float(hit)/total
 #		with open(repdir+"/test_results.txt","a") as testResultFile:
 #			testResultFile.write(str(float(hit)/total)+"\n")
+                if ((epoch>0 and epoch % 10 == 0)): # or (epoch > 25)):
+                        hit, total = accuracy.find_phrase_accuracy(ant, training_samples, 1, False)
+                        print "Accuracy on training set ::", float(hit)/total
 		
 		'''
 		hit, total = ant.find_accuracy(training_samples, 5)
@@ -147,7 +150,7 @@ def main():
 	parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
 	args = parser.parse_args()
 
-	lr_init = 0.0005
+	lr_init = 0.001
 	lr_decay = 0.95
 
 	config = phraseConfig.Config
