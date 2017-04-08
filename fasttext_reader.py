@@ -8,6 +8,15 @@ import fasttext
 
 total=0
 marked={}
+'''
+    def phrase2vec(self, phrase):
+	tokens = phrase.lower().replace(',',' , ').replace('-',' ')\
+                .replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ')\
+                .replace(')', ' ) ').replace('.', ' . ').strip().split()
+	tokens = ["INT" if w.isdigit() else ("FLOAT" if is_number(w) else w) for w in tmp]
+	seq = np.array( [self.word_model[w] for w in tokens] ) 
+'''
+
 
 def is_number(s):
     try:
@@ -224,90 +233,10 @@ class Reader:
 
 
 
-		self.pmc_has_init = False
-		self.wiki_has_init = False
 		self.reset_counter()
-		self.reset_counter_by_concept()
-
-	def reset_wiki_reader(self):
-		self.wiki_samples = []
-
-		if not self.wiki_has_init:
-			return
-		shuffle(self.wiki_raws)
-		for i in range(10000):
-			tokens = self.phrase2ids(self.wiki_raws[i])
-			if len(tokens[0])>=self.max_length:
-				continue
-			self.wiki_samples.append((tokens, []))
-
-	def reset_pmc_reader(self):
-		self.pmc_samples=[]
-		if not self.pmc_has_init:
-			return
-		for c in self.concepts:
-			if c=="<NULL>":
-				continue
-			for name in self.names[c]:
-				normalized_name = name.strip().lower()
-				if normalized_name in self.pmc_raws:
-					for i in range(2):
-						buck = random.sample(self.pmc_raws[normalized_name],1)[0]
-						textid = random.sample(self.pmc_raws[normalized_name][buck],1)[0]
-
-						text = self.pmc_id2text[textid]
-						tokens = self.phrase2ids(text)
-						if len(tokens)>=self.max_length:
-							continue
-						self.pmc_samples.append((tokens, [self.name2conceptid[x] for x in self.textid2labels[textid]]))
-
-	def init_wiki_data(self, wikiFile):
-		self.wiki_has_init = True
-		self.wiki_raws = pickle.load(wikiFile)
-
-	def init_pmc_data(self, pmcFile, pmcid2textFile, pmclabelsFile):
-		self.pmc_has_init = True
-		self.pmc_raws = pickle.load(pmcFile)
-#		print self.pmc_raws.keys()
-		self.pmc_id2text = pickle.load(pmcid2textFile)
-		self.textid2labels = pickle.load(pmclabelsFile)
-		self.reset_pmc_reader()
-	#	print pmc_samples
-
-
-		## Create buckets and samples
-		'''
-		samples = []
-		sizes = []
-		self.bucket = {i:[] for i in range(1,30)} ## 20?
-		for c in concepts:
-			for name in self.names[c]:
-                        samples.append( [self.phrase2ids(name), self.ancestry_mask[self.concept2id[c],:]] )
-                        self.bucket[samples[-1][0].shape[0]].append( (self.phrase2ids(name), self.ancestry_mask[self.concept2id[c],:]) )
-                for i in self.bucket:
-                    shuffle(self.bucket[i])
-                self.batches = []
-                for i in self.bucket:
-                    counter = 0
-                    while counter < len(self.bucket[i]):
-                        entry = [ np.vstack( [x[index] for x in self.bucket[i][counter:min(len(self.bucket[i]),counter+batch_size)]]) for index in [0,1] ]
-                        self.batches.append(entry)
-                        counter += batch_size
-#                    print i, len(self.bucket[i])
-                self.batch_counter = 0
-                shuffle(self.batches)
-
-		self.word2vec = np.vstack((self.word2vec, np.zeros((len(self.word2id) - initial_word2id_size,self.word2vec.shape[1]))))
-		'''
-
-	def reset_counter_by_concept(self):
-		self.sample_indecies = range(len(self.concepts))
-		shuffle(self.sample_indecies)
-		self.counter_by_concept = 0
+                print "word model loaded"
 
 	def reset_counter(self):
-		self.reset_pmc_reader()
-		self.reset_wiki_reader()
 #		self.mixed_samples =  self.pmc_samples
 		self.mixed_samples = self.samples #+ self.pmc_samples + self.wiki_samples 
 		shuffle(self.mixed_samples)
@@ -320,20 +249,6 @@ class Reader:
 		for i,s in enumerate(phrase_vecs):
 			seq[i,:seq_lengths[i]] = s
 		return {'seq':seq, 'seq_len':seq_lengths}
-
-	def read_batch_by_concept(self, batch_size):#, compare_size):
-		if self.counter_by_concept >= len(self.sample_indecies):
-			return None
-		ending = min(len(self.sample_indecies), self.counter_by_concept + batch_size)
-		raw_hpo_ids = self.sample_indecies[self.counter_by_concept : ending]
-		hpo_ids = np.hstack([np.array([i]*self.samples_by_concept[i]['seq_len'].shape[0]) for i in raw_hpo_ids])
-
-		sequence_lengths = np.hstack([self.samples_by_concept[i]['seq_len'] for i in raw_hpo_ids])
-		sequences = np.vstack([self.samples_by_concept[i]['seq'] for i in raw_hpo_ids])
-
-		self.counter_by_concept = ending
-
-		return {'seq':sequences, 'seq_len':sequence_lengths, 'hp_id':hpo_ids} #, 'comparables':comparables, 'comparables_mask':comparables_mask}
 
 	def read_batch(self, batch_size):#, compare_size):
 		if self.counter >= len(self.mixed_samples):

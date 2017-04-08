@@ -43,32 +43,39 @@ class NCRModel():
             embedding = tf.gather(self.HPO_embedding, indices)
             return embedding #tf.maximum(0.0, embedding)
 
-    def apply_meanpool(self, seq, seq_length):
-        ################ Experiment with the design here:
-        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.hidden_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
-        conv1_b = tf.get_variable('conv1_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
-        conv_layer1 = tf.nn.relu(tf.nn.conv1d(seq, filters1, 1, padding='SAME')+conv1_b)
+    def encode(self, seq, seq_length):
+        '''
+        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.word_embed_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        #conv1_b = tf.get_variable('conv1_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
+        conv_layer1 = tf.nn.conv1d(seq, filters1, 1, padding='SAME')
+        #conv_layer1 = tf.nn.relu(tf.nn.conv1d(seq, filters1, 1, padding='SAME')+conv1_b)
 
         filters2 = tf.get_variable('conv2', [1, self.config.hidden_size, self.config.hidden_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
         conv2_b = tf.get_variable('conv2_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
         self.conv_layer2 = tf.nn.relu(tf.nn.conv1d(conv_layer1, filters2, 1, padding='SAME')+conv2_b)
+        '''
 
         cell = tf.contrib.rnn.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
-        _, state = tf.nn.dynamic_rnn(cell, self.conv_layer2, dtype=tf.float32, sequence_length=seq_length)
-        return state
+        _, state = tf.nn.dynamic_rnn(cell, seq, dtype=tf.float32, sequence_length=seq_length)
 
-        return tf.reduce_max(self.conv_layer2, [1])
+        '''
+        with tf.variable_scope('fw'):
+            cell_fw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
+        with tf.variable_scope('bw'):
+            cell_bw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
+        #_, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, conv_layer1, dtype=tf.float32, sequence_length=seq_length)
+        _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, seq, dtype=tf.float32, sequence_length=seq_length)
+        state = tf.concat(states, 1)
+        #_, state = tf.nn.dynamic_rnn(cell, self.conv_layer2, dtype=tf.float32, sequence_length=seq_length)
+        '''
 
-
-    def encode(self, seq, seq_length):
-        ################ Experiment with the design here:
-        embed1 = self.apply_meanpool(seq, seq_length)
-        layer1 = tf.nn.relu(linear('sm_layer1', embed1, [self.config.hidden_size, self.config.layer1_size], self.phase))
-        layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size], self.phase))
+        layer1 = tf.nn.relu(linear('sm_layer1', state, [self.config.hidden_size, self.config.layer1_size]))
+        layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
         #layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
-        layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase))
+        layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
         #layer3 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase)), dim=1)
-        return layer3
+
+        return layer2
 
     def get_score(self, embedding):
         ################ Experiment with the design here:
@@ -94,30 +101,97 @@ class NCRModel():
     #############################
     ##### Creates the model #####
     #############################
-    def __init__(self, config, training = False, ancs_sparse = None):
+    def __init__(self, config, rd):
+        tf.reset_default_graph()
+        self.rd = rd
+        config.update_with_reader(self.rd)
         self.config = config
-
+        '''
         if ancs_sparse is None:
             self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
         else:
             self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
+        '''
 
         ### Inputs ###
-#        self.z = tf.get_variable("ancestry_z", [config.hpo_size, 128], trainable=False)
-        self.input_hpo_id = tf.placeholder(tf.int32, shape=[None])
-        self.input_sequence = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
-        self.input_sequence_lengths = tf.placeholder(tf.int32, shape=[None])
-        self.phase = tf.placeholder(tf.bool) 
+        self.label = tf.placeholder(tf.int32, shape=[None])
+        self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
+        self.seq_len = tf.placeholder(tf.int32, shape=[None])
 
-        label = tf.one_hot(self.input_hpo_id, config.hpo_size)
+        label_one_hot = tf.one_hot(self.label, config.hpo_size)
 
-        input_embedding = self.encode(self.input_sequence, self.input_sequence_lengths)
+        seq_embedding = self.encode(self.seq, self.seq_len)
 
-        self.score_layer = self.get_score(input_embedding)
+        self.score_layer = self.get_score(seq_embedding)
         self.pred = tf.nn.softmax(self.score_layer)
-        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label, self.score_layer)) 
-        return
-        self.score_layer = self.get_score(input_embedding)
-        self.pred = tf.nn.softmax(self.score_layer)
-        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label, self.score_layer)) 
+        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
+
+	self.lr = tf.Variable(config.lr, trainable=False)
+        self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+        print "starting session"
+	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        print "initializing"
+	self.sess.run(tf.global_variables_initializer())
+        print "initialized"
+
+
+    #########################################################
+
+    def save_params(self, repdir='.'):
+        tf.train.Saver().save(self.sess, (repdir+'/params.ckpt').replace('//','/'))
+
+    def load_params(self, repdir='.'):
+        tf.train.Saver().restore(self.sess, (repdir+'/params.ckpt').replace('//','/'))
+
+    def train_epoch(self):
+	self.rd.reset_counter()
+	ct = 0
+	report_loss = 0
+	total_loss = 0
+        report_len = 20
+	while True:
+            batch = self.rd.read_batch(self.config.batch_size)
+            if batch == None:
+                break
+
+            batch_feed = {self.seq:batch['seq'],\
+                    self.seq_len:batch['seq_len'],\
+                    self.label:batch['hp_id']} 
+            _ , batch_loss = self.sess.run([self.train_step, self.loss], feed_dict = batch_feed)
+
+            report_loss += batch_loss
+            total_loss += batch_loss
+            if ct % report_len == report_len-1:
+                print "Step =", ct+1, "\tLoss =", report_loss/report_len
+                #sys.stdout.flush()
+                report_loss = 0
+            ct += 1
+
+        return total_loss/ct
+
+    def get_hp_id(self, querry, count=1):
+        inp = self.rd.create_test_sample(querry)
+
+        querry_dict = {self.seq : inp['seq'], self.seq_len: inp['seq_len']}
+        res_querry = self.sess.run(self.pred, feed_dict = querry_dict)
+
+        results=[]
+        for s in range(len(querry)):
+            indecies_querry = np.argsort(-res_querry[s,:])
+
+            tmp_res = []
+            for i in indecies_querry:
+                '''
+                print i
+                if i == len(self.rd.concepts):
+                    tmp_res.append(('None',res_querry[i]))
+                else:
+                '''
+                tmp_res.append((self.rd.concepts[i],res_querry[s,i]))
+                if len(tmp_res)>=count:
+                        break
+            results.append(tmp_res)
+
+        return results
 

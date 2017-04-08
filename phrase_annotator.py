@@ -23,18 +23,7 @@ class NeuralPhraseAnnotator:
 
 	def get_hp_id(self, querry, count=1):
 		inp = self.rd.create_test_sample(querry)
-		querry_dict = {self.model.input_sequence : inp['seq'], self.model.input_sequence_lengths: inp['seq_len'], self.model.phase:0}
-		#res_querry = -self.sess.run(self.model.layer4, feed_dict = querry_dict)
-		#res_querry = -self.sess.run(self.model.score_layer, feed_dict = querry_dict)
-		res_querry = self.sess.run(self.model.pred, feed_dict = querry_dict)
-                '''
-		res_querry = self.sess.run(self.model.gru_state, feed_dict = querry_dict)
-		print np.max(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
-		print np.min(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
-		print np.sum(self.sess.run(self.model.gru_state, feed_dict = querry_dict))
-		print self.sess.run(self.model.layer2, feed_dict = querry_dict)
-                '''
-
+		res_querry = self.model.predict_input(inp)
 		results=[]
 		for s in range(len(querry)):
 			indecies_querry = np.argsort(-res_querry[s,:])
@@ -45,7 +34,6 @@ class NeuralPhraseAnnotator:
 	def __init__(self, model, rd ,sess, compWithPhrases = False):
 		self.model=model
 		self.rd = rd
-		self.sess = sess
 		return
 		self.compWithPhrases = compWithPhrases
 
