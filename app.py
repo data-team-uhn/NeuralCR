@@ -73,7 +73,7 @@ Returns a list of concept classes from the ontology that best match the input te
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer"}' http://ncr.ccm.sickkids.ca/curr/match/
 """
 @app.route('/match/', methods=['POST'])
-def match_post(text):
+def match_post():
     if not request.json or not 'text' in request.json:
         abort(400)
     res = match(request.json['text'])
@@ -99,7 +99,7 @@ Returns a ranked list of top concept classes from the ontology that best match t
     curl -i http://ncr.ccm.sickkids.ca/curr/match/?text=retina+cancer
 """
 @app.route('/match/', methods=['GET'])
-def match_get(text):
+def match_get():
     if not 'text' in request.args:
         abort(400)
     res = match(request.args['text'])
