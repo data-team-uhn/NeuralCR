@@ -4,26 +4,26 @@ import phrase_model
 import accuracy
 import fasttext_reader as reader
 import numpy as np
+import sys
+import sent_level
+import sent_accuracy
 
-def new_train(config):
+def new_train(model):
     report_len = 20
-    num_epochs = 25 
-
-    rd = reader.Reader(open("data/hp.obo"), False)
-    model = phrase_model.NCRModel(config, rd)
+    num_epochs = 30 
 
     samplesFile = open("data/labeled_data")
-    samples = accuracy.prepare_phrase_samples(rd, samplesFile, True)
+    samples = accuracy.prepare_phrase_samples(model.rd, samplesFile, True)
     training_samples = {}
-    for hpid in rd.names:
-        for s in rd.names[hpid]:
+    for hpid in model.rd.names:
+        for s in model.rd.names[hpid]:
             training_samples[s]=[hpid]
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
-            print rd.names[x[0]], x[1]
+            print model.rd.names[x[0]], x[1]
         #for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
         if ((epoch>0 and epoch % 5 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
@@ -48,12 +48,13 @@ def grid_search():
         for s in rd.names[hpid]:
             training_samples[s]=[hpid]
     
-    for config.batch_size in [128, 256, 512]:
-        for config.lr in [0.0005, 0.0002, 0.0001]:
-            for config.hidden_size in [512]:
+    for config.batch_size in [256, 128]:
+        for config.lr in [0.002, 0.001, 0.004]:
+            for config.hidden_size in [512, 1024]:
                 for config.layer1_size in [1024]:
                     for config.layer2_size in [1024, 2048]:
-                        config.layer3_size = config.layer1_size
+                        config.layer3_size = config.layer2_size
+                        config.layer4_size = config.layer2_size
 
                         model = phrase_model.NCRModel(config, rd)
                         num_epochs = 20 
@@ -78,17 +79,69 @@ def grid_search():
                                         '\tr1: '+ str(r1) +\
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
-def test(repdir, config):
-    rd = reader.Reader(open("data/hp.obo"), False)
-
-    samples = accuracy.prepare_phrase_samples(rd, open("data/labeled_data"), True)
+def interactive(model):
+    while True:
+        sys.stdout.write("-----------\nEnter text:\n")
+        sys.stdout.flush()
+        text = sys.stdin.readline()
+        sys.stdout.write("\n")
+        matches = model.get_hp_id([text],15)
+        for x in matches[0]:
+            '''
+            if x[0] == 'None':
+                sys.stdout.write(x[0]+' '+str('None')+' '+str(x[1])+'\n')
+            else:
+            '''
+            sys.stdout.write(x[0]+' '+str(model.rd.names[x[0]])+' '+str(x[1])+'\n')
+        sys.stdout.write("\n")
+	
+def anchor_test(model):
+    samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
     training_samples = {}
-    for hpid in rd.names:
-        for s in rd.names[hpid]:
-            training_samples[s]=[hpid]
+    syns = []
+    syn_labels = []
+    for i,hpid in enumerate(model.rd.concepts):
+        for s in model.rd.names[hpid]:
+            syns.append(s)
+            syn_labels.append(i)
 
+    model.set_anchors(syns, syn_labels)
+    #model.save_params(repdir)
+
+    for x in model.get_hp_id(['retina cancer'], 10)[0]:
+        print model.rd.names[x[0]], x[1]
+    print "==="
+    for x in model.get_hp_id(['retinal neoplasm'], 10)[0]:
+        print model.rd.names[x[0]], x[1]
+
+    hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
+    r1 = float(hit)/total
+    print "R@1 Accuracy on test set ::", r1
+
+    text_ant = sent_level.TextAnnotator(model)
+    sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.8, True )]
+#    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
+    sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
+
+def get_model(repdir, config):
+    rd = reader.Reader("data/", True)
+    #rd = reader.Reader(open("data/hp.obo"), True)
     model = phrase_model.NCRModel(config, rd)
     model.load_params(repdir)
+    return model
+
+def sent_test(model):
+    text_ant = sent_level.TextAnnotator(model)
+    sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.5, True )]
+    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
+    #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", rd)
+
+def phrase_test(model):
+    samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
+    training_samples = {}
+    for hpid in model.rd.names:
+        for s in model.rd.names[hpid]:
+            training_samples[s]=[hpid]
 
     hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
     r5 = float(hit)/total
@@ -106,13 +159,21 @@ def main():
     args = parser.parse_args()
 
     config = phraseConfig.Config
+    sent_test(get_model(args.repdir, config))
+#    phrase_test(get_model(args.repdir, config))
+#    anchor_test(get_model(args.repdir, config))
 
-    #test(args.repdir, config) 
+    #interactive(get_model(args.repdir, config)) 
     #exit()
 
     #grid_search()
-    model = new_train(config)
+
+    '''
+    rd = reader.Reader("data", True)
+    model = new_train(phrase_model.NCRModel(config, rd))
+#    model = new_train(get_model(args.repdir, config))
     model.save_params(args.repdir)
+    '''
 
 if __name__ == "__main__":
 	main()

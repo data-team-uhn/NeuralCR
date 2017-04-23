@@ -1,4 +1,3 @@
-import phrase_annotator
 import tensorflow as tf
 import argparse
 import sys
@@ -8,8 +7,9 @@ import cPickle as pickle
 from os import listdir
 from blist import sortedlist
 import time
-import sent_accuracy
-import fasttext_reader
+import fasttext_reader as reader
+from phraseConfig import Config
+import phrase_model
 
 class TextAnnotator:
 
@@ -17,13 +17,13 @@ class TextAnnotator:
 		results = []
 		for phrase in phrases:
 			resp = requests.get('https://phenotips.org/get/PhenoTips/SolrService?vocabulary=hpo&q='+phrase.replace(" ","+")).json()
-			ans = [(self.ant.rd.real_id[str(x[u'id'])],x[u'score']) if str(x[u'id']) in self.ant.rd.real_id else (x[u'id'],x[u'score']) for x in resp['rows'][:count]]
+			ans = [(self.rd.real_id[str(x[u'id'])],x[u'score']) if str(x[u'id']) in self.ant.rd.real_id else (x[u'id'],x[u'score']) for x in resp['rows'][:count]]
 			results.append(ans)
 		return results
 
 	def process_phrase(self, phrases, count=1):
 		#print phrases
-		ans_ncr = self.ant.get_hp_id(phrases, count)
+		ans_ncr = self.model.get_hp_id(phrases, count)
        #         for i in range(len(phrases)):
        #             print phrases[i], ans_ncr[i]
 		return ans_ncr
@@ -44,7 +44,7 @@ class TextAnnotator:
 					candidates.append(cand_phrase)
                 hp_ids = [x[0] for x in self.process_phrase(candidates, 1)]
                 for i in range(len(hp_ids)):
-                        if hp_ids[i][0]!='HP:None' and hp_ids[i][1] > threshold:
+                        if hp_ids[i][0]!='HP:0000118' and hp_ids[i][0]!='HP:None' and hp_ids[i][1] > threshold:
                                 if (hp_ids[i][0] not in ret) or (hp_ids[i][1]>ret[hp_ids[i][0]][0]):
                                         ret[hp_ids[i][0]] = (hp_ids[i][1], candidates[i])
 		results = []
@@ -75,8 +75,24 @@ class TextAnnotator:
 		else:
 			return results
 
+	def process_text_fast(self, text, threshold=0.5, filter_overlap=False):
+            sents = [text] #text.split(".")
+            ans = []
+            total_chars=0
+            final_results = []
+            for sent in sents:
+                    results = self.process_sent(sent, threshold, filter_overlap)
+                    for i in range(len(results)):
+                            results[i][0] += total_chars
+                            results[i][1] += total_chars
+                    final_results += results
+                    total_chars += len(sent)+1
+            final_results = sorted(final_results, key=lambda x : x[0])
+            return final_results
+
 	def process_text(self, text, threshold=0.5, filter_overlap=False):
-            '''
+            #'''
+                return self.process_text_fast(text, threshold, filter_overlap)
 		sents = text.split(".")
 		ans = []
 		total_chars=0
@@ -89,13 +105,21 @@ class TextAnnotator:
 			final_results += results
 			total_chars += len(sent)+1
 		final_results = sorted(final_results, key=lambda x : x[0])
-            '''
+                return final_results
+            #'''
 
-	def __init__(self, repdir=None, ant=None, datadir=None, addNull=False):
+	def __init__(self, model):
+            self.model = model
+	#def __init__(self, repdir=None, ant=None, datadir=None, addNull=False):
+        #    self.rd = reader.Reader(open("data/hp.obo"), False)
+        #    self.model = phrase_model.NCRModel(Config(), self.rd)
+        #    self.model.load_params(repdir)
+            '''
             if ant == None:
                 self.ant = phrase_annotator.create_annotator(repdir, datadir, True, addNull)
             else:
                 self.ant = ant
+            '''
 
 
 
@@ -139,7 +163,7 @@ def main():
 		results = textAnt.process_text(text, args.threshold, args.filter_overlap)
 		end_time = time.time()
 		for res in results:
-			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", textAnt.ant.rd.names[res[2]]
+			print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", textAnt.rd.names[res[2]]
 		print "Time elapsed: "+ ("%.2f" % (end_time-start_time)) + "s"
 		if args.input is not None:
 			break

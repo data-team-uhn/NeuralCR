@@ -71,11 +71,12 @@ class NCRModel():
         layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
         #layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
         layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
-        layer4 = tf.nn.relu(linear('sm_layer4', layer3, [self.config.layer3_size, self.config.layer4_size]))
-        #layer3 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase)), dim=1)
+
+        probs = (linear('sm_layer3', layer3, [self.config.layer3_size, self.config.hpo_size]))
+        return probs
 
 #        return layer4 #tf.nn.l2_normalize(layer4, dim=1)
-        return tf.nn.l2_normalize(layer4, dim=1)
+        return tf.nn.l2_normalize(layer3, dim=1)
 
     def get_score(self, embedding):
         ################ Experiment with the design here:
@@ -125,12 +126,15 @@ class NCRModel():
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
 
         self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = rd.sparse_ancestrs, values = [1.0]*len(rd.sparse_ancestrs), dense_shape=[config.hpo_size, config.hpo_size]))
+        self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
 
 #        self.anchors = tf.get_variable('anchors', [19202, config.layer4_size], trainable=False) #19k x 1024 , B x 1024
 
         label_one_hot = tf.one_hot(self.label, config.hpo_size)
 
-        self.seq_embedding = self.encode(self.seq, self.seq_len)
+        self.probs = self.encode(self.seq, self.seq_len)
+        self.loss = tf.nn.sigmoid_cross_entropy_with_logits(self.probs, tf.gather(self.ancestry_masks, self.label))
+        self.loss = tf.nn.sigmoid_cross_entropy_with_logits(self.probs, tf.gather(self.ancestry_masks, self.label))
 
         self.score_layer = self.get_score(self.seq_embedding)
         self.pred = tf.nn.softmax(self.score_layer)
@@ -141,6 +145,7 @@ class NCRModel():
 
         print "starting session"
 	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        self.sess.run(tf.assign(self.ancestry_mask, rd.ancestry_mask))
         print "initializing"
 	self.sess.run(tf.global_variables_initializer())
         print "initialized"

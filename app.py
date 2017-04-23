@@ -205,6 +205,7 @@ def match(text)
         tmp = OrderedDict([('hp_id',x[0]),
                 ('names',rd.names[x[0]]), 
                 ('score',str(x[1]))])
+
         res.append(tmp)
     return {"matches":res}
 
