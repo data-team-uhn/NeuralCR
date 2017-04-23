@@ -103,7 +103,6 @@ def create_negatives(text, num):
 
 
 class Reader:
-
 	def phrase2ids(self, phrase, add_words=False):
 		#		if len(tokenize(phrase)) > self.max_length:
 		#	print len(tokenize(phrase))
@@ -153,7 +152,7 @@ class Reader:
 
 
 
-	def __init__(self, oboFile, include_negs=False):
+	def __init__(self, data_dir='data/', include_negs=False):
                 self.include_negs = include_negs
 		## Create word to id
 		self.max_length = 50 #max([len(s[0]) for s in self.samples])
@@ -162,10 +161,10 @@ class Reader:
                 
 
 		print "loading word model..."
-		self.word_model = fasttext.load_model('data/model_pmc.bin')
+		self.word_model = fasttext.load_model(data_dir+'/model_pmc.bin')
 
 		###################### Read HPO ######################
-		self.names, self.kids, self.parents, self.real_id, self.def_text = read_oboFile(oboFile, "HP:0000118")
+		self.names, self.kids, self.parents, self.real_id, self.def_text = read_oboFile(open(data_dir+'/hp.obo'), "HP:0000118")
 		self.concepts = [c for c in self.names.keys()]
 		self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))
 
@@ -210,17 +209,19 @@ class Reader:
 
 
                 if self.include_negs:
+                    '''
                     ub_names, ub_kids, ub_parents, ub_real_id, ub_def_text = read_oboFile(open('data/uberon.obo'), "UBERON:0000062")
                     self.ub_negs = [x for concept in ub_names for x in ub_names[concept]]
                     ub_names2, ub_kids, ub_parents, ub_real_id, ub_def_text = read_oboFile(open('data/uberon.obo'), "UBERON:0000064")
                     self.ub_negs += [x for concept in ub_names2 for x in ub_names2[concept]]
+                    '''
                     none_id = len(self.concepts)
                     self.concepts.append('HP:None')
                     self.names['HP:None']=['None']
                     
-                    wiki_text = open('wiki_text').read()
+                    wiki_text = open(data_dir+'/wiki_text').read()
                     raw_negs = create_negatives(wiki_text[:10000000], 10000)
-                    raw_negs += self.ub_negs
+                    #raw_negs += self.ub_negs
 
                     self.neg_samples = []
                     self.sparse_ancestrs.append([none_id, none_id])

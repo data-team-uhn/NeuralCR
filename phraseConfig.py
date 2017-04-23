@@ -5,7 +5,11 @@ class Config:
     layer1_size = 1024
     layer2_size = 1024
     layer3_size = 1024
-    lr = 0.0005
+    layer4_size = 1024
+    #layer4_size = 2048
+    lr = 1.0/512
+#    lr = 1.0/1024
+#    lr = 0.002
 
     word_embed_size = 100
     @staticmethod
