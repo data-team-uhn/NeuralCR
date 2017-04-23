@@ -15,9 +15,9 @@ import fasttext_reader as reader
 app = Flask(__name__)
 
 #'''
-rd = reader.Reader(open("data/hp.obo"), True)
+rd = reader.Reader("../../data", True)
 model = phrase_model.NCRModel(phraseConfig.Config(), rd)
-model.load_params('checkpoints')
+model.load_params('../checkpoints')
 textAnt = TextAnnotator(model)
 #'''
 
@@ -73,7 +73,7 @@ Returns a list of concept classes from the ontology that best match the input te
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer"}' http://ncr.ccm.sickkids.ca/curr/match/
 """
 @app.route('/match/', methods=['POST'])
-def match_post(text)
+def match_post(text):
     if not request.json or not 'text' in request.json:
         abort(400)
     res = match(request.json['text'])
@@ -99,7 +99,7 @@ Returns a ranked list of top concept classes from the ontology that best match t
     curl -i http://ncr.ccm.sickkids.ca/curr/match/?text=retina+cancer
 """
 @app.route('/match/', methods=['GET'])
-def match_get(text)
+def match_get(text):
     if not 'text' in request.args:
         abort(400)
     res = match(request.args['text'])
@@ -198,7 +198,7 @@ def annotate_get():
     res = annotate(request.args['text'])
     return jsonify(res)
 
-def match(text)
+def match(text):
     matches = model.get_hp_id([text], 10)[0]
     res = []
     for x in matches:
