@@ -97,6 +97,99 @@ Returns a ranked list of top concept classes from the ontology that best match t
 
 @apiExample {curl} Example usage:
     curl -i http://ncr.ccm.sickkids.ca/curr/match/?text=retina+cancer
+
+@apiSuccessExample {json} Success-Response:
+HTTP/1.1 200 OK
+Date: Sun, 23 Apr 2017 18:47:40 GMT
+Server: Apache/2.4.18 (Ubuntu)
+Content-Length: 1745
+Content-Type: application/json
+
+{
+  "matches": [
+    {
+      "hp_id": "HP:0012777", 
+      "names": [
+        "Retinal neoplasm"
+      ], 
+      "score": "0.708877"
+    }, 
+    {
+      "hp_id": "HP:0100012", 
+      "names": [
+        "Neoplasm of the eye", 
+        "Neoplasia of the eye"
+      ], 
+      "score": "0.161902"
+    }, 
+    {
+      "hp_id": "HP:0100006", 
+      "names": [
+        "Neoplasm of the central nervous system", 
+        "Neoplasia of the central nervous system", 
+        "Tumors of the central nervous system"
+      ], 
+      "score": "0.0105245"
+    }, 
+    {
+      "hp_id": "HP:0007716", 
+      "names": [
+        "Intraocular melanoma", 
+        "Uveal melanoma"
+      ], 
+      "score": "0.00986601"
+    }, 
+    {
+      "hp_id": "HP:0000479", 
+      "names": [
+        "Abnormality of the retina", 
+        "Abnormal retina", 
+        "Anomaly of the retina", 
+        "Retinal disease"
+      ], 
+      "score": "0.00977207"
+    }, 
+    {
+      "hp_id": "HP:0004375", 
+      "names": [
+        "Neoplasm of the nervous system", 
+        "Neoplasia of the nervous system", 
+        "Tumor of the nervous system"
+      ], 
+      "score": "0.00862639"
+    }, 
+    {
+      "hp_id": "HP:0009919", 
+      "names": [
+        "Retinoblastoma"
+      ], 
+      "score": "0.00727"
+    }, 
+    {
+      "hp_id": "HP:0030692", 
+      "names": [
+        "Brain neoplasm", 
+        "Brain tumor", 
+        "Brain tumour"
+      ], 
+      "score": "0.00584657"
+    }, 
+    {
+      "hp_id": "HP:0100836", 
+      "names": [
+        "Malignant neoplasm of the central nervous system"
+      ], 
+      "score": "0.0049508"
+    }, 
+    {
+      "hp_id": "HP:0001098", 
+      "names": [
+        "Abnormality of the fundus"
+      ], 
+      "score": "0.00389818"
+    }
+  ]
+}
 """
 @app.route('/match/', methods=['GET'])
 def match_get():
@@ -155,41 +248,43 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 
 @apiSuccessExample {json} Success-Response:
 HTTP/1.1 200 OK
-Date: Sun, 23 Apr 2017 17:51:51 GMT
+Date: Sun, 23 Apr 2017 18:46:33 GMT
 Server: Apache/2.4.18 (Ubuntu)
-Content-Length: 611
+Content-Length: 686
 Content-Type: application/json
 
-[
-  {
-    "end": 52, 
-    "hp_id": "HP:0001627", 
-    "names": [
-      "Abnormal heart morphology", 
-      "Abnormality of cardiac morphology", 
-      "Abnormality of the heart", 
-      "Cardiac abnormality", 
-      "Cardiac anomalies", 
-      "Congenital heart defect", 
-      "Congenital heart defects"
-    ], 
-    "score": "0.696756", 
-    "start": 37
-  }, 
-  {
-    "end": 69, 
-    "hp_id": "HP:0009726", 
-    "names": [
-      "Renal neoplasm", 
-      "Kidney cancer", 
-      "Neoplasia of the kidneys", 
-      "Renal neoplasia", 
-      "Renal tumors"
-    ], 
-    "score": "0.832163", 
-    "start": 45
-  }
-]
+{
+  "matches": [
+    {
+      "end": 52, 
+      "hp_id": "HP:0001627", 
+      "names": [
+        "Abnormal heart morphology", 
+        "Abnormality of cardiac morphology", 
+        "Abnormality of the heart", 
+        "Cardiac abnormality", 
+        "Cardiac anomalies", 
+        "Congenital heart defect", 
+        "Congenital heart defects"
+      ], 
+      "score": "0.696756", 
+      "start": 37
+    }, 
+    {
+      "end": 69, 
+      "hp_id": "HP:0009726", 
+      "names": [
+        "Renal neoplasm", 
+        "Kidney cancer", 
+        "Neoplasia of the kidneys", 
+        "Renal neoplasia", 
+        "Renal tumors"
+      ], 
+      "score": "0.832163", 
+      "start": 45
+    }
+  ]
+}
 """
 @app.route('/annotate/', methods=['GET'])
 def annotate_get():
