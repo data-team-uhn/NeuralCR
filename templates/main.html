@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+	</head>
+	<body>
+	
+	<div class="ant">
+	<h1> Neural Concept Recognizer </h1>
+		<form class="form-style-9" action="#" method="POST">
+			<ul>
+				<li>
+					<textarea name="text" class="field-style" placeholder="Message">{{ texxt }}</textarea>
+				</li>
+				<li>
+					<input type="submit" value="Annotate" />
+				</li>
+			</ul>
+		</form>
+	{% if tokens %}
+	<div class="owners">
+	<div class="res">
+	{% for token in tokens %}
+		{% if token.hp_id %}
+		<span class="own"> {{token.text}}
+			<span class="own1">
+			{{ token.hp_id }}
+			<p>
+			{{ token.name }}
+			</p>
+			</span>
+		</span>
+		{% else %}
+		{{ token.text }}
+		{% endif %}
+	{% endfor %}
+	</div>
+	</div>
+	{% endif %}
+	</div>
+	</body>
+</html>
+
