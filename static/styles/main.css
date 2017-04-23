@@ -47,7 +47,7 @@
     float:right;
 }
 .form-style-9 ul li textarea{
-    width: 100%;
+    width: 600px;
     height: 100px;
 }
 .form-style-9 ul li input[type="button"], 
@@ -69,13 +69,15 @@
     background: linear-gradient(to bottom, #2D77A2 5%, #337DA8 100%);
     background-color: #28739E;
 }
-
-.ant{
-	width:600px;
+.intro{
+	width:90%;
 	border:0px solid #ff9d2a;
 	margin:50px 50px;
-
-
+}
+.ant{
+	width:90%;
+	border:0px solid #ff9d2a;
+	margin:50px 50px;
 }
 .res{
 	margin:10px;

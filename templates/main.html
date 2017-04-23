@@ -4,12 +4,31 @@
 		<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
 	</head>
 	<body>
-	
-	<div class="ant">
+	<div class="intro">
 	<h1> Neural Concept Recognizer </h1>
 	<p>
-	Enter text to annotate. To use the RESTful API please read the <a href="http://ncr.ccm.sickkids.ca/api_doc/">documentation</a>.
+	NCR is a concept recognizer for annotating unstructured text with concepts from an ontology. In its core, NCR uses a deep neural network trained to classify input phrases with concepts in a given ontology, and is capable of generalizing to synonyms not explicitly available.
+Currently NCR is trained to recognize concepts from Human Phenotype Ontology (<a href="http://human-phenotype-ontology.github.io/">HPO</a>).
 	</p>
+
+	<p>
+If interested in using the RESTful API, please check the <a href="http://ncr.ccm.sickkids.ca/api_doc/">documentation</a> page.
+	</p>
+
+	<p>
+For further questions, please contact us at:
+	</p>
+	<ul>
+		<li>
+		<a href="http://www.cs.toronto.edu/~arbabi/">Aryan Arbabi</a>, arbabi AT cs DOT toronto DOT edu
+		</li>
+		<li>
+		<a href="http://www.cs.toronto.edu/~brudno/">Michael Brudno</a>, brudno AT cs DOT toronto DOT edu
+		</li>
+	</ul>
+	</div>
+	<div class="ant">
+		Enter text to annotate:
 		<form class="form-style-9" action="#" method="POST">
 			<ul>
 				<li>
