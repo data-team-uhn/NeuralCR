@@ -12,7 +12,6 @@ from phraseConfig import Config
 import phrase_model
 
 class TextAnnotator:
-
 	def phenotips(self, phrases, count=1):
 		results = []
 		for phrase in phrases:
@@ -75,6 +74,67 @@ class TextAnnotator:
 		else:
 			return results
 
+	def process_text_fast_new(self, text, threshold=0.5, filter_overlap=False):
+            chunks_large = text.replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
+            candidates = []
+            candidates_info = []
+            total_chars=0
+            for c,chunk in enumerate(chunks_large):
+		tokens = chunk.split(" ")
+                chunk_chars = 0
+		for i,w in enumerate(tokens):
+                    phrase = ""
+                    for r in range(7):
+                        if i+r >= len(tokens) or len(tokens[i+r])==0:
+                            break
+                        if r>0:
+                            phrase += " " + tokens[i+r]
+                        else:
+                            phrase = tokens[i+r]
+                        #cand_phrase = phrase.strip(',/;-.').strip()
+                        cand_phrase = phrase
+                        if len(cand_phrase) > 0:
+                            candidates.append(cand_phrase)
+                            location = total_chars+chunk_chars
+                            candidates_info.append((location, location+len(phrase), c))
+                    chunk_chars += len(w)+1
+                total_chars += len(chunk)+1
+            matches = [x[0] for x in self.process_phrase(candidates, 1)]
+            filtered = {}
+#            print matches
+            for i in range(len(candidates)):
+                if matches[i][0]!='HP:0000118' and matches[i][0]!="HP:None" and matches[i][1]>threshold:
+                    if candidates_info[i][2] not in filtered:
+                        filtered[candidates_info[i][2]] = []
+                    filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
+#            print filtered
+            final = []
+            for c in filtered:
+                for m in filtered[c]:
+                    confilict = False
+                    #print " :: ", m
+                    for m2 in filtered[c]:
+#                        print " :: --", m2,
+                        ## m2 and m have some intersection, m2 has better score
+                        if m[1]>m2[0] and m[0]<m2[0] and m[1]<m2[1] and m[3]<m2[3]:
+                            confilict = True
+#                            print "0"
+                            break
+                        ## m2 fully inside m, same id, better score
+                        if m[0]<=m2[0] and m[1]>=m2[1] and m[2]==m2[2] and m[3]<m2[3]:
+                            confilict = True
+#                            print "1"
+                            break
+                        ## m2 fully covers m, another id
+                        if m2[0]<=m[0] and m2[1]>=m[1] and m[2]!=m2[2]:
+                            confilict = True
+                            #print "2"
+                            break
+                    if not confilict:
+                        final.append(m)
+            return final
+            
+
 	def process_text_fast(self, text, threshold=0.5, filter_overlap=False):
             sents = [text] #text.split(".")
             ans = []
@@ -92,7 +152,7 @@ class TextAnnotator:
 
 	def process_text(self, text, threshold=0.5, filter_overlap=False):
             #'''
-                return self.process_text_fast(text, threshold, filter_overlap)
+                return self.process_text_fast_new(text, threshold, filter_overlap)
 		sents = text.split(".")
 		ans = []
 		total_chars=0

@@ -90,7 +90,7 @@ class NCRModel():
         last_layer2 =  linear('last_layer2', self.last_layer1, [self.config.layer2_size, self.config.layer2_size], self.phase)
         '''
  #       '''
-        last_layer_w =  linear_sparse('last_layerW', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer3_size])
+        last_layer_w =  linear_sparse('last_layerW', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer4_size])
 #        last_layer_w =  linear('last_l', tf.nn.relu(last_layer_w_p), [self.config.layer3_size, self.config.layer4_size])
         #last_layer_w = tf.get_variable('last_layer'+"W", shape = [self.config.hpo_size, self.config.layer4_size], initializer = tf.random_normal_initializer(stddev=0.1))
         last_layer_b = tf.get_variable('last_layer'+"B", shape = [self.config.hpo_size], initializer = tf.random_normal_initializer(stddev=0.001))

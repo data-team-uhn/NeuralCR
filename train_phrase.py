@@ -7,6 +7,7 @@ import numpy as np
 import sys
 import sent_level
 import sent_accuracy
+import time
 
 def new_train(model):
     report_len = 20
@@ -79,6 +80,20 @@ def grid_search():
                                         '\tr1: '+ str(r1) +\
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
+def interactive_sent(model):
+    textAnt = sent_level.TextAnnotator(model)
+    while True:
+        print "Enter querry:"
+        text = sys.stdin.readline()
+        if text == "":
+            break
+        start_time = time.time()
+        results = textAnt.process_text(text, 0.6, True)
+        end_time = time.time()
+        for res in results:
+            print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", model.rd.names[res[2]]
+        print "Time elapsed: "+ ("%.2f" % (end_time-start_time)) + "s"
+
 def interactive(model):
     while True:
         sys.stdout.write("-----------\nEnter text:\n")
@@ -120,8 +135,8 @@ def anchor_test(model):
 
     text_ant = sent_level.TextAnnotator(model)
     sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.8, True )]
-#    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
-    sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
+    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
+#    sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
 def get_model(repdir, config):
     rd = reader.Reader("data/", True)
@@ -132,9 +147,9 @@ def get_model(repdir, config):
 
 def sent_test(model):
     text_ant = sent_level.TextAnnotator(model)
-    sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.5, True )]
-    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
-    #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", rd)
+    sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.6, True )]
+    #sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
+    sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
 def phrase_test(model):
     samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
@@ -159,9 +174,10 @@ def main():
     args = parser.parse_args()
 
     config = phraseConfig.Config
-    sent_test(get_model(args.repdir, config))
+    #interactive_sent(get_model(args.repdir, config))
+#    sent_test(get_model(args.repdir, config))
 #    phrase_test(get_model(args.repdir, config))
-#    anchor_test(get_model(args.repdir, config))
+    anchor_test(get_model(args.repdir, config))
 
     #interactive(get_model(args.repdir, config)) 
     #exit()

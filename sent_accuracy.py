@@ -1,6 +1,6 @@
 import os
 import cPickle as pickle
-#import biolark_wrapper
+import biolark_wrapper
 import sent_level
 
 def prepare_phrase_samples(rd, samplesFile):

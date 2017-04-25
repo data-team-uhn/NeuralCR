@@ -14,10 +14,21 @@ import fasttext_reader as reader
 
 app = Flask(__name__)
 
+def init():
+    model.load_params('../checkpoints')
+    syns = []
+    syn_labels = []
+    for i,hpid in enumerate(model.rd.concepts):
+        for s in model.rd.names[hpid]:
+            syns.append(s)
+            syn_labels.append(i)
+
+    model.set_anchors(syns, syn_labels)
+
 #'''
 rd = reader.Reader("../../data", True)
 model = phrase_model.NCRModel(phraseConfig.Config(), rd)
-model.load_params('../checkpoints')
+init()
 textAnt = TextAnnotator(model)
 #'''
 
@@ -25,7 +36,7 @@ textAnt = TextAnnotator(model)
 @app.route('/', methods=['POST'])
 def main_page():
     text = request.form['text']
-    matches = textAnt.process_text(text, 0.6, True)
+    matches = textAnt.process_text(text, 0.8, True)
     tokens = []
     last = 0
     for match in matches:
@@ -305,7 +316,7 @@ def match(text):
     return {"matches":res}
 
 def annotate(text):
-    matches = textAnt.process_text(text, 0.6, True)
+    matches = textAnt.process_text(text, 0.8, True)
     res = []
     for x in matches:
         tmp = OrderedDict([('start',x[0]),
