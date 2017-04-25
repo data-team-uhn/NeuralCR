@@ -75,7 +75,7 @@ class TextAnnotator:
 			return results
 
 	def process_text_fast_new(self, text, threshold=0.5, filter_overlap=False):
-            chunks_large = text.replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
+            chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
             candidates = []
             candidates_info = []
             total_chars=0
