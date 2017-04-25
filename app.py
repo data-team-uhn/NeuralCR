@@ -18,7 +18,7 @@ app = Flask(__name__)
 rd = reader.Reader("../../data", True)
 model = phrase_model.NCRModel(phraseConfig.Config(), rd)
 model.load_params('../checkpoints')
-model.set_anchors(syns, syn_labels)
+#model.set_anchors()
 textAnt = TextAnnotator(model)
 #'''
 
@@ -26,7 +26,7 @@ textAnt = TextAnnotator(model)
 @app.route('/', methods=['POST'])
 def main_page():
     text = request.form['text']
-    matches = textAnt.process_text(text, 0.8, True)
+    matches = textAnt.process_text(text, 0.6, True)
     tokens = []
     last = 0
     for match in matches:
@@ -306,7 +306,7 @@ def match(text):
     return {"matches":res}
 
 def annotate(text):
-    matches = textAnt.process_text(text, 0.8, True)
+    matches = textAnt.process_text(text, 0.6, True)
     res = []
     for x in matches:
         tmp = OrderedDict([('start',x[0]),
