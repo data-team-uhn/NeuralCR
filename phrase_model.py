@@ -181,7 +181,14 @@ class NCRModel():
 
         return total_loss/ct
 
-    def set_anchors(self, syns, syns_labels):
+    def set_anchors(self):
+        syns = []
+        syns_labels = []
+        for i,hpid in enumerate(self.rd.concepts):
+            for s in self.rd.names[hpid]:
+                syns.append(s)
+                syns_labels.append(i)
+
         self.anchors_set = True
 	header = 0
 	batch_size = 512

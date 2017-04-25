@@ -14,21 +14,11 @@ import fasttext_reader as reader
 
 app = Flask(__name__)
 
-def init():
-    model.load_params('../checkpoints')
-    syns = []
-    syn_labels = []
-    for i,hpid in enumerate(model.rd.concepts):
-        for s in model.rd.names[hpid]:
-            syns.append(s)
-            syn_labels.append(i)
-
-    model.set_anchors(syns, syn_labels)
-
 #'''
 rd = reader.Reader("../../data", True)
 model = phrase_model.NCRModel(phraseConfig.Config(), rd)
-init()
+model.load_params('../checkpoints')
+model.set_anchors(syns, syn_labels)
 textAnt = TextAnnotator(model)
 #'''
 

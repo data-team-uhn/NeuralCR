@@ -81,6 +81,7 @@ def grid_search():
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
 def interactive_sent(model):
+    model.set_anchors()
     textAnt = sent_level.TextAnnotator(model)
     while True:
         print "Enter querry:"
@@ -113,12 +114,6 @@ def interactive(model):
 def anchor_test(model):
     samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
     training_samples = {}
-    syns = []
-    syn_labels = []
-    for i,hpid in enumerate(model.rd.concepts):
-        for s in model.rd.names[hpid]:
-            syns.append(s)
-            syn_labels.append(i)
 
     model.set_anchors(syns, syn_labels)
     #model.save_params(repdir)
@@ -174,10 +169,10 @@ def main():
     args = parser.parse_args()
 
     config = phraseConfig.Config
-    #interactive_sent(get_model(args.repdir, config))
+    interactive_sent(get_model(args.repdir, config))
 #    sent_test(get_model(args.repdir, config))
 #    phrase_test(get_model(args.repdir, config))
-    anchor_test(get_model(args.repdir, config))
+    #anchor_test(get_model(args.repdir, config))
 
     #interactive(get_model(args.repdir, config)) 
     #exit()
