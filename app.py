@@ -27,6 +27,7 @@ textAnt = TextAnnotator(model)
 def main_page():
     text = request.form['text']
     matches = textAnt.process_text(text, 0.6, True)
+    matches = sorted(matches, key=lambda x: x[0])
     tokens = []
     last = 0
     for match in matches:
