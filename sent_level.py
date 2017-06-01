@@ -101,13 +101,16 @@ class TextAnnotator:
                 total_chars += len(chunk)+1
             matches = [x[0] for x in self.process_phrase(candidates, 1)]
             filtered = {}
-#            print matches
+            #print "---->>>>"
+            #print matches
+            #print " "
             for i in range(len(candidates)):
                 if matches[i][0]!='HP:0000118' and matches[i][0]!="HP:None" and matches[i][1]>threshold:
                     if candidates_info[i][2] not in filtered:
                         filtered[candidates_info[i][2]] = []
                     filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
-#            print filtered
+            #print filtered
+            #print " "
             final = []
             for c in filtered:
                 for m in filtered[c]:
@@ -116,6 +119,18 @@ class TextAnnotator:
                     for m2 in filtered[c]:
 #                        print " :: --", m2,
                         ## m2 and m have some intersection, m2 has better score
+                        if m[1]>m2[0] and m[0]<m2[1]:
+                            ## m2 fully covers m, another id
+                            if m2[0]<=m[0] and m2[1]>=m[1] and m[2]!=m2[2]:
+                                confilict = True
+                                break
+                            ## m2 fully inside m, another id
+                            if m[0]<=m2[0] and m[1]>=m2[1] and m[2]!=m2[2]:
+                                continue
+                            if m[3]<m2[3]:
+                                confilict = True
+                                break
+                        '''
                         if m[1]>m2[0] and m[0]<m2[0] and m[1]<m2[1] and m[3]<m2[3]:
                             confilict = True
 #                            print "0"
@@ -130,6 +145,7 @@ class TextAnnotator:
                             confilict = True
                             #print "2"
                             break
+                        '''
                     if not confilict:
                         final.append(m)
             return final

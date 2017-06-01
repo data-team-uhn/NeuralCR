@@ -81,7 +81,7 @@ def grid_search():
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
 def interactive_sent(model):
-    model.set_anchors()
+#    model.set_anchors()
     textAnt = sent_level.TextAnnotator(model)
     while True:
         print "Enter querry:"
@@ -141,10 +141,11 @@ def get_model(repdir, config):
     return model
 
 def sent_test(model):
+  #  model.set_anchors()
     text_ant = sent_level.TextAnnotator(model)
     sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.6, True )]
-    #sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
-    sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
+    sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
+    #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
 def phrase_test(model):
     samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
@@ -163,19 +164,42 @@ def phrase_test(model):
     tr1 = float(hit)/total
     print "R@1 Accuracy on training set ::", tr1
 
+def udp_test(model, text_file, phe_file, bk_file):
+    retrieved = []
+    textAnt = sent_level.TextAnnotator(model)
+    text = open(text_file).read()
+    called = set([x[2] for x in textAnt.process_text(text)])
+    real_phe = set([model.rd.concepts[model.rd.name2conceptid[name.strip().lower()]] for name in open(phe_file).readlines()])
+
+    bk_called = [model.rd.real_id[x.strip()] for x in open(bk_file).readlines()]
+
+    print "NCR:"
+    true_pos = [x for x in called if x in real_phe]
+    print len(called), len(real_phe), len(true_pos)
+    print "Precision:", 1.0*len(true_pos)/len(called)
+    print "Recall:", 1.0*len(true_pos)/len(real_phe)
+
+    print "Biolark:"
+    bk_true_pos = [x for x in bk_called if x in real_phe]
+    print len(bk_called), len(real_phe), len(bk_true_pos)
+    print "Precision:", 1.0*len(bk_true_pos)/len(bk_called)
+    print "Recall:", 1.0*len(bk_true_pos)/len(real_phe)
+
 def main():
     parser = argparse.ArgumentParser(description='Hello!')
     parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
+    parser.add_argument('--udp_prefix', help="", default="chert")
     args = parser.parse_args()
 
     config = phraseConfig.Config
-    interactive_sent(get_model(args.repdir, config))
-#    sent_test(get_model(args.repdir, config))
+    udp_test(get_model(args.repdir, config), args.udp_prefix+".txt", args.udp_prefix+".phe", args.udp_prefix+".txt.bk")
+#    interactive_sent(get_model(args.repdir, config))
+    #sent_test(get_model(args.repdir, config))
 #    phrase_test(get_model(args.repdir, config))
     #anchor_test(get_model(args.repdir, config))
 
     #interactive(get_model(args.repdir, config)) 
-    #exit()
+    exit()
 
     #grid_search()
 
