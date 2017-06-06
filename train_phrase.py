@@ -168,7 +168,7 @@ def udp_test(model, text_file, phe_file, bk_file):
     retrieved = []
     textAnt = sent_level.TextAnnotator(model)
     text = open(text_file).read()
-    called = set([x[2] for x in textAnt.process_text(text)])
+    called = set([x[2] for x in textAnt.process_text(text, 0.6, True)])
     real_phe = set([model.rd.concepts[model.rd.name2conceptid[name.strip().lower()]] for name in open(phe_file).readlines()])
 
     bk_called = [model.rd.real_id[x.strip()] for x in open(bk_file).readlines()]
