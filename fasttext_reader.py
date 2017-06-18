@@ -248,7 +248,9 @@ class Reader:
 		phrase_vecs = [self.phrase2vec(phrase) for phrase in phrases]
 		seq_lengths = np.array([len(phrase) for phrase in phrase_vecs])
 		for i,s in enumerate(phrase_vecs):
-			seq[i,:seq_lengths[i]] = s
+                    if seq_lengths[i] == 0:
+                        continue
+                    seq[i,:seq_lengths[i]] = s
 		return {'seq':seq, 'seq_len':seq_lengths}
 
 	def read_batch(self, batch_size):#, compare_size):
