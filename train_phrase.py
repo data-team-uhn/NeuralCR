@@ -8,6 +8,8 @@ import sys
 import sent_level
 import sent_accuracy
 import time
+import os
+ 
 
 def new_train(model):
     report_len = 20
