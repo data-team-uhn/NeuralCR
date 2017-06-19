@@ -1,4 +1,5 @@
 class Config:
+    include_negs = True
     batch_size = 256
     hidden_size = 512
 
