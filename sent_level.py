@@ -124,7 +124,7 @@ class TextAnnotator:
                     if conflict:
                         continue
                     best_smaller = m
-                    for m2 in tmp_final:
+                    for m2 in cands:
                         if m[0]<=m2[0] and m[1]>=m2[1] and m[2]==m2[2] and (m2[1]-m2[0]<best_smaller[1]-best_smaller[0]):
                             best_smaller = m2
                     tmp_final.append(best_smaller)
