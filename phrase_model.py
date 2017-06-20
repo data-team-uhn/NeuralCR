@@ -37,6 +37,20 @@ def embedding_variable(name, shape):
     return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
 
 class NCRModel():
+
+    def apply_meanpool(self, seq, seq_length):
+        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
+        seq_dp = tf.nn.dropout(seq, self.keep_prob)
+        layer1 = tf.nn.elu(tf.nn.conv1d(seq_dp, filters1, 1, padding='SAME') + conv1_b)
+
+        filters2 = tf.get_variable('conv2', [1, self.config.cl1, self.config.cl2], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        conv2_b = tf.get_variable('0conv2_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl2)
+        layer1_dp = layer1 #tf.nn.dropout(layer1, self.keep_prob)
+        layer2 = tf.nn.elu(tf.nn.conv1d(layer1_dp, filters2, 1, padding='SAME') + conv2_b)
+
+        return tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(layer2, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
+
     def get_HPO_embedding(self, indices=None):
         embedding = self.HPO_embedding
         if indices is not None:
@@ -44,11 +58,12 @@ class NCRModel():
             return embedding #tf.maximum(0.0, embedding)
 
     def encode(self, seq, seq_length):
-        '''
+        return self.apply_meanpool(seq, seq_length)
         filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.word_embed_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
         #conv1_b = tf.get_variable('conv1_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
         conv_layer1 = tf.nn.conv1d(seq, filters1, 1, padding='SAME')
         #conv_layer1 = tf.nn.relu(tf.nn.conv1d(seq, filters1, 1, padding='SAME')+conv1_b)
+        '''
 
         filters2 = tf.get_variable('conv2', [1, self.config.hidden_size, self.config.hidden_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
         conv2_b = tf.get_variable('conv2_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
@@ -62,8 +77,8 @@ class NCRModel():
             cell_fw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
         with tf.variable_scope('bw'):
             cell_bw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
-        #_, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, conv_layer1, dtype=tf.float32, sequence_length=seq_length)
-        _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, seq, dtype=tf.float32, sequence_length=seq_length)
+        _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, conv_layer1, dtype=tf.float32, sequence_length=seq_length)
+        #_, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, seq, dtype=tf.float32, sequence_length=seq_length)
         state = tf.concat(states, 1)
         #_, state = tf.nn.dynamic_rnn(cell, self.conv_layer2, dtype=tf.float32, sequence_length=seq_length)
 
@@ -123,6 +138,7 @@ class NCRModel():
         self.label = tf.placeholder(tf.int32, shape=[None])
         self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
+        self.keep_prob = tf.placeholder(tf.float32)
 
         self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = rd.sparse_ancestrs, values = [1.0]*len(rd.sparse_ancestrs), dense_shape=[config.hpo_size, config.hpo_size]))
 
@@ -168,6 +184,7 @@ class NCRModel():
 
             batch_feed = {self.seq:batch['seq'],\
                     self.seq_len:batch['seq_len'],\
+                    self.keep_prob:self.config.keep_prob,\
                     self.label:batch['hp_id']} 
             _ , batch_loss = self.sess.run([self.train_step, self.loss], feed_dict = batch_feed)
 
@@ -237,7 +254,7 @@ class NCRModel():
             return self.get_hp_id_from_anchor(querry, count)
         inp = self.rd.create_test_sample(querry)
 
-        querry_dict = {self.seq : inp['seq'], self.seq_len: inp['seq_len']}
+        querry_dict = {self.seq : inp['seq'], self.seq_len: inp['seq_len'],self.keep_prob:1.0}
         res_querry = self.sess.run(self.pred, feed_dict = querry_dict)
 
         results=[]

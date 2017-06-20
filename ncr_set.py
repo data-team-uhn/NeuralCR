@@ -22,17 +22,19 @@ def main():
     rd = reader.Reader("data/", config.include_negs)
     model = phrase_model.NCRModel(config, rd)
     model.load_params(args.repdir)
-    model.set_anchors()
+#    model.set_anchors()
 
     text_ant = sent_level.TextAnnotator(model)
 
-    for filename in os.listdir(args.input_dir):
-        print filename
-        text = open(args.input_dir+"/"+filename).read()
-        predictions = text_ant.process_text(text, 0.8)
-        with open(args.output_dir+"/"+filename,"w") as fw:
-            for y in predictions:
-                fw.write(y[2]+"\n")
+    for theta in [0.7]:
+    #for theta in [0.1, 0.3, 0.5, 0.7, 0.9]:
+        for filename in os.listdir(args.input_dir):
+            print filename
+            text = open(args.input_dir+"/"+filename).read()
+            predictions = text_ant.process_text(text, theta)
+            with open(args.output_dir+"_"+str(theta)+"/"+filename,"w") as fw:
+                for y in predictions:
+                    fw.write(y[2]+"\n")
 
 if __name__ == "__main__":
 	main()

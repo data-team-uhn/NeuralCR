@@ -109,16 +109,36 @@ class TextAnnotator:
                     if candidates_info[i][2] not in filtered:
                         filtered[candidates_info[i][2]] = []
                     filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
-            #print filtered
+
             #print " "
             final = []
             for c in filtered:
+                tmp_final = []
+                cands = sorted(filtered[c], key= lambda x:x[0]-x[1])
+                for m in cands:
+                    conflict = False
+                    for m2 in tmp_final:
+                        if m[1]>m2[0] and m[0]<m2[1]:
+                            conflict = True
+                            break
+                    if conflict:
+                        continue
+                    best_smaller = m
+                    for m2 in tmp_final:
+                        if m[0]<=m2[0] and m[1]>=m2[1] and m[2]==m2[2] and (m2[1]-m2[0]<best_smaller[1]-best_smaller[0]):
+                            best_smaller = m2
+                    tmp_final.append(best_smaller)
+                final+=tmp_final
+
+
+
+                continue
                 for m in filtered[c]:
                     confilict = False
                     #print " :: ", m
                     for m2 in filtered[c]:
 #                        print " :: --", m2,
-                        ## m2 and m have some intersection, m2 has better score
+                        ## m2 and m have some intersection
                         if m[1]>m2[0] and m[0]<m2[1]:
                             ## m2 fully covers m, another id
                             if m2[0]<=m[0] and m2[1]>=m[1] and m[2]!=m2[2]:
@@ -150,21 +170,6 @@ class TextAnnotator:
                         final.append(m)
             return final
             
-
-	def process_text_fast(self, text, threshold=0.5, filter_overlap=False):
-            sents = [text] #text.split(".")
-            ans = []
-            total_chars=0
-            final_results = []
-            for sent in sents:
-                    results = self.process_sent(sent, threshold, filter_overlap)
-                    for i in range(len(results)):
-                            results[i][0] += total_chars
-                            results[i][1] += total_chars
-                    final_results += results
-                    total_chars += len(sent)+1
-            final_results = sorted(final_results, key=lambda x : x[0])
-            return final_results
 
 	def process_text(self, text, threshold=0.5, filter_overlap=False):
             #'''
