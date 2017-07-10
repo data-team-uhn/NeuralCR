@@ -9,24 +9,34 @@ import sent_level
 import sent_accuracy
 import time
 import os
+import h5py
+from onto import Ontology
+import fasttext
  
 
 def new_train(model):
     report_len = 20
-    num_epochs = 30 
+    num_epochs = 40 
 
+    rd = reader.Reader(model.ont)
     samplesFile = open("data/labeled_data")
-    samples = accuracy.prepare_phrase_samples(model.rd, samplesFile, True)
+    samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
     training_samples = {}
-    for hpid in model.rd.names:
-        for s in model.rd.names[hpid]:
+    for hpid in model.ont.names:
+        for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
+
+    ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
+    negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
+    model.init_training()
+    #model.init_training(negs)
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
+	rd.reset_counter()
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
-            print model.rd.names[x[0]], x[1]
+            print model.ont.names[x[0]], x[1]
         #for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
         if ((epoch>0 and epoch % 5 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
@@ -142,10 +152,11 @@ def get_model(repdir, config):
     model.load_params(repdir)
     return model
 
-def sent_test(model):
+def sent_test(model, threshold=0.6):
   #  model.set_anchors()
-    text_ant = sent_level.TextAnnotator(model)
-    sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.6, True )]
+    #text_ant = sent_level.TextAnnotator(model)
+    #sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.6, True )]
+    sent_window_func = lambda text: [x[2] for x in model.annotate_text(text,threshold)]
     sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
     #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
@@ -156,7 +167,7 @@ def phrase_test(model):
         for s in model.rd.names[hpid]:
             training_samples[s]=[hpid]
 
-    hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
+    hit, total = accuracy.find_phrase_accuracy(model, samples, 5, True)
     r5 = float(hit)/total
     print "R@5 Accuracy on test set ::", r5
     hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
@@ -195,10 +206,47 @@ def main():
 
     config = phraseConfig.Config
 #    udp_test(get_model(args.repdir, config), args.udp_prefix+".txt", args.udp_prefix+".phe", args.udp_prefix+".txt.bk")
-    interactive_sent(get_model(args.repdir, config))
+#    interactive_sent(get_model(args.repdir, config))
+#    exit()
     #sent_test(get_model(args.repdir, config))
-    #phrase_test(get_model(args.repdir, config))
+    ###########
+    '''
+    model = get_model(args.repdir, config)
+
+    ## print graph
+    with  open('graph.txt','w') as graphfile:
+        for hpid in model.rd.kids:
+            for hpkid in model.rd.kids[hpid]:
+                graphfile.write(str(model.rd.concept2id[hpid])+' '+str(model.rd.concept2id[hpkid])+'\n')
     exit()
+    ## print graph
+    W = model.sess.run(model.w)
+    aggW = model.sess.run(model.aggregated_w)
+    y = np.zeros(len(model.rd.concepts))
+    y_sum = np.zeros(len(model.rd.concepts))
+    top_terms = model.rd.kids["HP:0000118"]
+    top_term_ids = [model.rd.concept2id[x] for x in top_terms]
+    for h_id in range(len(model.rd.concepts)-1):
+        for i,top_id in enumerate(top_term_ids):
+            if model.rd.ancestry_mask[h_id, top_id] == 1:
+                y[h_id] = i+1
+        y_sum[h_id] = np.sum(model.rd.ancestry_mask[h_id,:])
+ 
+    from tsne import bh_sne
+    taggW = bh_sne(aggW.astype(np.float))
+    h5f = h5py.File('embeddings.h5', 'w')
+    h5f.create_dataset('W', data=W)
+    h5f.create_dataset('aggW', data=aggW)
+    h5f.create_dataset('taggW', data=taggW)
+    h5f.create_dataset('y', data=y)
+    h5f.create_dataset('y_sum', data=y_sum)
+    h5f.close()
+    exit()
+    '''
+    ###########
+
+
+    #phrase_test(get_model(args.repdir, config))
     #anchor_test(get_model(args.repdir, config))
 
     #interactive(get_model(args.repdir, config)) 
@@ -206,8 +254,9 @@ def main():
 
     #grid_search()
 
-    rd = reader.Reader("data", config.include_negs)
-    model = new_train(phrase_model.NCRModel(config, rd))
+    word_model = fasttext.load_model('data/model_pmc.bin')
+    ont = Ontology('data/hp.obo',"HP:0000118")
+    model = new_train(phrase_model.NCRModel(config, ont, word_model))
 #    model = new_train(get_model(args.repdir, config))
     model.save_params(args.repdir)
 

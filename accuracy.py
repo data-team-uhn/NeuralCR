@@ -1,13 +1,13 @@
 
-def prepare_phrase_samples(rd, samplesFile, filter_flag=False):
+def prepare_phrase_samples(ont, samplesFile, filter_flag=False):
 	samples = {}
 	ct = 0
 	for line in samplesFile:
 		tokens = line.strip().split("\t")
                 if len(tokens)>2:
                     continue
-		real_hp_id = rd.real_id[tokens[1].strip().replace("_",":")]
-		if real_hp_id not in rd.concepts:
+		real_hp_id = ont.real_id[tokens[1].strip().replace("_",":")]
+		if real_hp_id not in ont.concepts:
 			continue
 		samples[tokens[0].strip()] = [real_hp_id]
 		ct += 1
@@ -17,7 +17,7 @@ def prepare_phrase_samples(rd, samplesFile, filter_flag=False):
             copy_samples = dict(samples)
             for x in copy_samples:
                 normed = x.lower()
-                if normed in rd.name2conceptid:
+                if normed in ont.name2conceptid:
                     del samples[x]
 
 	return samples

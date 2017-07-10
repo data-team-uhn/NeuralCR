@@ -9,12 +9,16 @@ import sent_level
 import sent_accuracy
 import time
 import os
+from onto import Ontology
 
-def normalize(rd, hpid_filename):
-    raw = [rd.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
-    return set([x for x in raw if x in rd.concepts])
+def normalize(ont, hpid_filename):
+    raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
+    return set([x for x in raw if x in ont.concepts])
 
-def eval(label_dir, output_dir, file_list, rd):
+def get_all_ancestors(ont, hit_list):
+    return set([ont.concepts[x] for hit in hit_list for x in ont.ancestrs[ont.concept2id[hit]]])
+
+def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
     total_precision = 0
     total_recall = 0
     total_docs = 0
@@ -23,27 +27,45 @@ def eval(label_dir, output_dir, file_list, rd):
     total_positives = 0
     total_true_pos = 0
 
+    jaccard_sum = 0
+
     for filename in open(file_list).readlines():
         filename = filename.strip()
-        relevant = normalize(rd, label_dir+"/"+filename)
-        positives = normalize(rd, output_dir+"/"+filename)
-        true_pos = [x for x in positives if x in relevant]
+        real = normalize(ont, label_dir+"/"+filename)
+        extended_real = get_all_ancestors(ont, real)
+        if comp_dir!=None:
+            comp_positives = normalize(ont, comp_dir+"/"+filename)
+            extended_comp_positives = get_all_ancestors(ont, comp_positives)
+        positives = normalize(ont, output_dir+"/"+filename)
+        extended_positives = get_all_ancestors(ont, positives)
+        true_pos = [x for x in positives if x in real]
 
         precision = 1
         if len(positives)!=0:
             precision = 1.0*len(true_pos)/len(positives)
 
         recall = 1
-        if len(relevant)!=0:
-            recall = 1.0*len(true_pos)/len(relevant)
+        if len(real)!=0:
+            recall = 1.0*len(true_pos)/len(real)
 
         total_docs += 1
         total_precision += precision
         total_recall += recall
 
-        total_relevant += len(relevant)
+        total_relevant += len(real)
         total_positives += len(positives)
         total_true_pos += len(true_pos)
+        
+        if len(extended_real | extended_positives) == 0:
+            jaccard = 1.0
+        else:
+            jaccard = 1.0 * len(extended_real & extended_positives) / len(extended_real | extended_positives)
+            if comp_dir!=None and len(extended_real | extended_comp_positives)!=0:
+                jaccard_comp = 1.0 * len(extended_real & extended_comp_positives) / len(extended_real | extended_comp_positives)
+                if jaccard<jaccard_comp:
+                    print filename
+
+        jaccard_sum += jaccard
 
     precision = total_precision/total_docs
     recall = total_recall/total_docs
@@ -53,7 +75,9 @@ def eval(label_dir, output_dir, file_list, rd):
     mrecall = 1.0*total_true_pos/total_relevant
     mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
 
-    ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}}
+    jaccard_mean = jaccard_sum/total_docs
+
+    ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}, "jaccard":jaccard_mean}
     return ret
     print "Precision:", precision
     print "Recall:", recall 
@@ -92,17 +116,18 @@ def main():
     parser.add_argument('label_dir', help="Path to the directory where the input text files are located")
     parser.add_argument('output_dir', help="Path to the directory where the output files will be stored")
     parser.add_argument('file_list', help="Path to the directory where the output files will be stored")
+    parser.add_argument('--comp_dir', help="Path to the directory where the output files will be stored")
     parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
     args = parser.parse_args()
 
-    rd = reader.Reader("data/")
-
-    results = eval(args.label_dir, args.output_dir, args.file_list, rd)
+    ont = Ontology('data/hp.obo',"HP:0000118")
+    results = eval(args.label_dir, args.output_dir, args.file_list, ont, args.comp_dir)
     res_print = []
     for style in ["micro", "vanila"]: 
         for acc_type in ["precision", "recall", "fmeasure"]: 
             res_print.append(results[style][acc_type])
-    print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
+    res_print.append(results['jaccard'])
+    print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
 
     #roc(args.label_dir, args.output_dir, args.file_list, rd)
 if __name__ == "__main__":
