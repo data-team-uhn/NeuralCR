@@ -60,36 +60,8 @@ class NCRModel():
             phrase_vec_list.append([self.word_model[tokens[i]] if i<len(tokens) else [0]*self.word_model.dim for i in range(max_length)])
             phrase_seq_lengths.append(len(tokens))
         return np.array(phrase_vec_list), np.array(phrase_seq_lengths)
-    '''
-	def phenotips(self, phrases, count=1):
-		results = []
-		for phrase in phrases:
-			resp = requests.get('https://phenotips.org/get/PhenoTips/SolrService?vocabulary=hpo&q='+phrase.replace(" ","+")).json()
-			ans = [(self.rd.real_id[str(x[u'id'])],x[u'score']) if str(x[u'id']) in self.ant.rd.real_id else (x[u'id'],x[u'score']) for x in resp['rows'][:count]]
-			results.append(ans)
-		return results
-    '''
-    def apply_meanpool(self, seq, seq_length):
-        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
-        conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
-        seq_dp = tf.nn.dropout(seq, self.keep_prob)
-        layer1 = tf.nn.elu(tf.nn.conv1d(seq_dp, filters1, 1, padding='SAME') + conv1_b)
 
-        filters2 = tf.get_variable('conv2', [1, self.config.cl1, self.config.cl2], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
-        conv2_b = tf.get_variable('0conv2_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl2)
-        layer1_dp = layer1 #tf.nn.dropout(layer1, self.keep_prob)
-        self.layer2 = tf.nn.elu(tf.nn.conv1d(layer1_dp, filters2, 1, padding='SAME') + conv2_b)
-
-        with tf.variable_scope('top_cnn'):
-            ret = tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(self.layer2, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
-        return ret
-    def get_HPO_embedding(self, indices=None):
-        embedding = self.HPO_embedding
-        if indices is not None:
-            embedding = tf.gather(self.HPO_embedding, indices)
-            return embedding #tf.maximum(0.0, embedding)
-
-    def annotate_text(self, text, threshold=0.2): ##TODO list to str
+    def __annotate_text(self, text, threshold=0.2): ##TODO list to str
         chunks_large = text.replace("\r","|").replace("\n","|").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
         inp = self.rd.create_test_sample(chunks_large)
         bsize = 256
@@ -104,10 +76,8 @@ class NCRModel():
             head+=bsize
         return ret
 
-
-
-    def extract_from_sentence(self, inp, threshold): ##TODO list to str
-        querry_dict = {self.seq : inp['seq'], self.seq_len: inp['seq_len'], self.keep_prob:1.0}
+    def __extract_from_sentence(self, inp, threshold): ##TODO list to str
+        querry_dict = {self.seq : inp['seq'], self.seq_len: inp['seq_len']}
         res_querry = self.sess.run(self.wins, feed_dict = querry_dict)
         hp_index = [np.argmax(x, axis=-1) for x in res_querry]
         score = [np.max(x, axis=-1) for x in res_querry]
@@ -166,16 +136,13 @@ class NCRModel():
             total_chars += len(chunk)+1
         matches = [x[0] for x in self.get_hp_id(candidates, 1)]
         filtered = {}
-        #print "---->>>>"
-        #print matches
-        #print " "
+
         for i in range(len(candidates)):
-            if matches[i][0]!='HP:0000118' and matches[i][0]!="HP:None" and matches[i][1]>threshold:
+            if matches[i][0]!='HP:0000118' and matches[i][0]!="None" and matches[i][1]>threshold:
                 if candidates_info[i][2] not in filtered:
                     filtered[candidates_info[i][2]] = []
                 filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
 
-        #print " "
         final = []
         for c in filtered:
             tmp_final = []
@@ -197,71 +164,6 @@ class NCRModel():
         return final
 
 
-
-    def encode(self, seq, seq_length):
-        return self.apply_meanpool(seq, seq_length)
-        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.word_embed_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
-        #conv1_b = tf.get_variable('conv1_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
-        conv_layer1 = tf.nn.conv1d(seq, filters1, 1, padding='SAME')
-        #conv_layer1 = tf.nn.relu(tf.nn.conv1d(seq, filters1, 1, padding='SAME')+conv1_b)
-        '''
-
-        filters2 = tf.get_variable('conv2', [1, self.config.hidden_size, self.config.hidden_size], tf.float32, initializer=tf.contrib.layers.xavier_initializer())
-        conv2_b = tf.get_variable('conv2_b', initializer=tf.contrib.layers.xavier_initializer(), shape=self.config.hidden_size)
-        self.conv_layer2 = tf.nn.relu(tf.nn.conv1d(conv_layer1, filters2, 1, padding='SAME')+conv2_b)
-        '''
-
-#        cell = tf.contrib.rnn.GRUCell(self.config.hidden_size, activation=tf.nn.tanh)
-#        _, state = tf.nn.dynamic_rnn(cell, seq, dtype=tf.float32, sequence_length=seq_length)
-
-        with tf.variable_scope('fw'):
-            cell_fw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
-        with tf.variable_scope('bw'):
-            cell_bw = tf.contrib.rnn.GRUCell(self.config.hidden_size/2, activation=tf.nn.tanh)
-        _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, conv_layer1, dtype=tf.float32, sequence_length=seq_length)
-        #_, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, seq, dtype=tf.float32, sequence_length=seq_length)
-        state = tf.concat(states, 1)
-        #_, state = tf.nn.dynamic_rnn(cell, self.conv_layer2, dtype=tf.float32, sequence_length=seq_length)
-
-        layer1 = tf.nn.relu(linear('sm_layer1', state, [self.config.hidden_size, self.config.layer1_size]))
-        layer2 = tf.nn.relu(linear('sm_layer2', layer1, [self.config.layer1_size, self.config.layer2_size]))
-        #layer3 = linear('sm_layer3', layer2, [self.config.layer2_size, 128], self.phase)
-        layer3 = tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size]))
-        layer4 = tf.nn.relu(linear('sm_layer4', layer3, [self.config.layer3_size, self.config.layer4_size]))
-        #layer3 = tf.nn.l2_normalize(tf.nn.relu(linear('sm_layer3', layer2, [self.config.layer2_size, self.config.layer3_size], self.phase)), dim=1)
-
-#        return layer4 #tf.nn.l2_normalize(layer4, dim=1)
-        return tf.nn.l2_normalize(layer4, dim=1)
-
-    def get_score(self, embedding):
-        ################ Experiment with the design here:
-        '''
-        self.last_layer1 =  tf.nn.tanh(linear('last_layer1', self.z, [128, self.config.layer2_size]))
-        self.last_layer2 =  tf.nn.tanh(linear('last_layer2', self.last_layer1, [self.config.layer2_size, self.config.layer2_size]))
-        self.last_layer3 =  (linear('last_layer3', self.last_layer2, [self.config.layer2_size, self.config.layer2_size]))
-        last_layer2 = self.last_layer3
-        '''
-        '''
-        self.last_layer1 =  tf.nn.relu(linear_sparse('last_layer1', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer2_size]))
-        last_layer2 =  linear('last_layer2', self.last_layer1, [self.config.layer2_size, self.config.layer2_size], self.phase)
-        '''
- #       '''
-        self.w = tf.get_variable("last_layerWW", shape = [self.config.concepts_size, self.config.layer4_size], initializer = tf.random_normal_initializer(stddev=0.1))
-        last_layer_b = tf.get_variable('last_layer'+"B", shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
-        self.aggregated_w = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.w) 
-        #self.last_layer_w =  linear_sparse('last_layerW', self.ancestry_sparse_tensor, [self.config.hpo_size, self.config.layer4_size])
-#        last_layer_w =  linear('last_l', tf.nn.relu(last_layer_w_p), [self.config.layer3_size, self.config.layer4_size])
-        #last_layer_w = tf.get_variable('last_layer'+"W", shape = [self.config.hpo_size, self.config.layer4_size], initializer = tf.random_normal_initializer(stddev=0.1))
-
-        score_layer = tf.matmul(embedding, tf.transpose(self.aggregated_w))  + last_layer_b
- #       '''
-        #score_layer = tf.reduce_sum(embedding*embedding, axis=1, keep_dims=True) + tf.transpose(tf.reduce_sum(self.z*self.z, axis=1, keep_dims=True)) -2*tf.matmul(embedding, self.z, transpose_b=True)
-#        score_layer = linear('last_layer', embedding, [self.config.layer3_size, self.config.hpo_size]) 
- #       w = tf.get_variable('last_layer'+"W", shape = [self.config.layer3_size, self.config.hpo_size], initializer = tf.random_normal_initializer(stddev=0.1))
- #       b = tf.get_variable('last_layer'+"B", shape = [self.config.hpo_size], initializer = tf.random_normal_initializer(stddev=0.01))
- #       score_layer = tf.matmul(embedding, w) + b
-        return score_layer
-
     #############################
     ##### Creates the model #####
     #############################
@@ -271,18 +173,11 @@ class NCRModel():
         self.word_model = word_model
         config.update_with_reader(self.ont)
         self.config = config
-        '''
-        if ancs_sparse is None:
-            self.ancestry_masks = tf.get_variable("ancestry_masks", [config.hpo_size, config.hpo_size], trainable=False)
-        else:
-            self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ancs_sparse, values = [1.0]*len(ancs_sparse), dense_shape=[config.hpo_size, config.hpo_size]))
-        '''
 
         ### Inputs ###
         self.label = tf.placeholder(tf.int32, shape=[None])
         self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
-        self.keep_prob = tf.placeholder(tf.float32)
 
         self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ont.sparse_ancestrs, values = [1.0]*len(ont.sparse_ancestrs), dense_shape=[config.concepts_size, config.concepts_size]))
 
@@ -290,16 +185,32 @@ class NCRModel():
 
         label_one_hot = tf.one_hot(self.label, config.concepts_size)
 
-        self.seq_embedding = self.encode(self.seq, self.seq_len)
+        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
+        layer1 = tf.nn.elu(tf.nn.conv1d(self.seq, filters1, 1, padding='SAME') + conv1_b)
 
-        with tf.variable_scope('top_cnn') as scope:
-            self.score_layer = self.get_score(self.seq_embedding)
+        filters2 = tf.get_variable('conv2', [1, self.config.cl1, self.config.cl2], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        conv2_b = tf.get_variable('0conv2_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl2)
+        self.layer2 = tf.nn.elu(tf.nn.conv1d(layer1, filters2, 1, padding='SAME') + conv2_b)
+
+        #with tf.variable_scope('top_cnn'):
+        self.seq_embedding = tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(self.layer2, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
+
+
+
+        #with tf.variable_scope('top_cnn') as scope:
+        self.w = tf.get_variable("last_layerWW", shape = [self.config.concepts_size, self.config.layer4_size], initializer = tf.random_normal_initializer(stddev=0.1))
+        last_layer_b = tf.get_variable('last_layer'+"B", shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
+        self.aggregated_w = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.w) 
+        self.score_layer = tf.matmul(self.seq_embedding, tf.transpose(self.aggregated_w))  + last_layer_b
+
         self.pred = tf.nn.softmax(self.score_layer)
         self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
 
 	self.lr = tf.Variable(config.lr, trainable=False)
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
-
+        
+        '''
         self.wins = [tf.nn.max_pool(tf.expand_dims(self.layer2, -1), [1, k, 1, 1], [1, 1, 1, 1], 'VALID') for k in range(1,8)]
         with tf.variable_scope('top_cnn') as scope:
             scope.reuse_variables()
@@ -307,6 +218,7 @@ class NCRModel():
             self.wins = [tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reshape(x, [-1, self.config.cl2]), [self.config.cl2, self.config.cl2])), dim=1) for x in self.wins]
             self.wins = [tf.nn.softmax(self.get_score(x)) for x in self.wins]
             self.wins = [tf.reshape(x,[-1,config.max_sequence_length-i, self.config.concepts_size]) for i, x in enumerate(self.wins)]
+        '''
 
 
 
@@ -360,7 +272,6 @@ class NCRModel():
             head += self.config.batch_size
             batch_feed = {self.seq:batch['seq'],\
                     self.seq_len:batch['seq_len'],\
-                    self.keep_prob:self.config.keep_prob,\
                     self.label:batch['label']} 
             _ , batch_loss = self.sess.run([self.train_step, self.loss], feed_dict = batch_feed)
 
@@ -432,7 +343,7 @@ class NCRModel():
             return self.get_hp_id_from_anchor(querry, count)
         seq, seq_len = self.phrase2vec(querry, self.config.max_sequence_length)
 
-        querry_dict = {self.seq : seq, self.seq_len: seq_len, self.keep_prob:1.0}
+        querry_dict = {self.seq : seq, self.seq_len: seq_len}
         res_querry = self.sess.run(self.pred, feed_dict = querry_dict)
 
         results=[]
@@ -443,11 +354,11 @@ class NCRModel():
             for i in indecies_querry:
                 '''
                 print i
-                if i == len(self.rd.concepts):
-                    tmp_res.append(('None',res_querry[i]))
-                else:
                 '''
-                tmp_res.append((self.ont.concepts[i],res_querry[s,i]))
+                if i == len(self.ont.concepts):
+                    tmp_res.append(('None',res_querry[s,i]))
+                else:
+                    tmp_res.append((self.ont.concepts[i],res_querry[s,i]))
                 if len(tmp_res)>=count:
                         break
             results.append(tmp_res)

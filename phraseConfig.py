@@ -18,7 +18,7 @@ class Config:
     word_embed_size = 100
     @staticmethod
     def update_with_reader(ont):
-        Config.concepts_size = len(ont.concepts)
+        Config.concepts_size = len(ont.concepts)+1
 
 
 

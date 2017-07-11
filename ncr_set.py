@@ -25,6 +25,7 @@ def main():
     args = parser.parse_args()
 
     #######
+    '''
     word_model = fasttext.load_model('data/model_pmc.bin')
     ont = Ontology('data/hp.obo',"HP:0000118")
     ncrmodel = NCRModel(phraseConfig.Config, ont, word_model)
@@ -34,36 +35,40 @@ def main():
     extractmodel.load_params('ext_params')
 
     sentant = SentAnt(ncrmodel, extractmodel)
+    '''
     #######
  
 
 
 
-    '''
+    #'''
     config = phraseConfig.Config
-    rd = reader.Reader("data/", config.include_negs)
-    model = phrase_model.NCRModel(config, rd)
+    word_model = fasttext.load_model('data/model_pmc.bin')
+    ont = Ontology('data/hp.obo',"HP:0000118")
+    model = phrase_model.NCRModel(config, ont, word_model)
+
     model.load_params(args.repdir)
-    '''
+    #'''
 #    model.set_anchors()
 
 
-    for theta in [0.3, 0.5, 0.7]:
-        for theta2 in [0.3, 0.5, 0.7, 0.9]:
-            ct=0
-            output_dir = args.output_dir+"/res_"+str(theta)+"_"+str(theta2)+"/"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            for filename in os.listdir(args.input_dir):
-                print output_dir+"/"+filename
-                text = open(args.input_dir+"/"+filename).read()
-                predictions = sentant.process_text(text, theta, theta2)
-                with open(output_dir+"/"+filename,"w") as fw:
-                    for y in predictions:
-                        fw.write(y[2]+"\n")
-                ct += 1
-    #            if ct == 15:
-    #                exit()
+    for theta in [0.5, 0.6, 0.7, 0.8]:
+        ct=0
+        output_dir = args.output_dir+"/res_"+str(theta)+"/"
+        #output_dir = args.output_dir+"/res_"+str(theta)+"_"+str(theta2)+"/"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        for filename in os.listdir(args.input_dir):
+            print output_dir+"/"+filename
+            text = open(args.input_dir+"/"+filename).read()
+            predictions = model.process_text(text, theta)
+            #predictions = sentant.process_text(text, theta, theta2)
+            with open(output_dir+"/"+filename,"w") as fw:
+                for y in predictions:
+                    fw.write(y[2]+"\n")
+            ct += 1
+#            if ct == 15:
+#                exit()
 
 if __name__ == "__main__":
 	main()

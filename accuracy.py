@@ -56,17 +56,17 @@ def find_phrase_accuracy(ant, samples, top_size=None, verbose=False):
                                         printed_sth = False
 					for attempt, res in enumerate(results[i]):
                                             if res[0] == batch[s][0]:
-                                                print s, batch[s], ant.rd.names[batch[s][0]], "#"+str(attempt), res[1]
+                                                print s, batch[s], ant.ont.names[batch[s][0]], "#"+str(attempt), res[1]
                                                 printed_sth = True
                                                 break
                                         if not printed_sth:
-                                            print s, batch[s], ant.rd.names[batch[s][0]]
+                                            print s, batch[s], ant.ont.names[batch[s][0]]
 					print ""
 					for attempt,res in enumerate(results[i]):
                                             if attempt >= top_size:
                                                 break
-                                            if res[0] in ant.rd.names:
-                                                print res[0], ant.rd.names[res[0]], res[1]
+                                            if res[0] in ant.ont.names:
+                                                print res[0], ant.ont.names[res[0]], res[1]
                                             else:
                                                 print res[0], "--not found--", res[1]
 

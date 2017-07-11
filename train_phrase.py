@@ -29,14 +29,17 @@ def new_train(model):
     ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
     negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
     model.init_training()
-    #model.init_training(negs)
+    model.init_training(negs)
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
 	rd.reset_counter()
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
-            print model.ont.names[x[0]], x[1]
+            if x[0] in model.ont.names:
+                print model.ont.names[x[0]], x[1]
+            else:
+                print x[0], x[1]
         #for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
         if ((epoch>0 and epoch % 5 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
@@ -161,10 +164,10 @@ def sent_test(model, threshold=0.6):
     #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
 def phrase_test(model):
-    samples = accuracy.prepare_phrase_samples(model.rd, open("data/labeled_data"), True)
+    samples = accuracy.prepare_phrase_samples(model.ont, open("data/labeled_data"), True)
     training_samples = {}
-    for hpid in model.rd.names:
-        for s in model.rd.names[hpid]:
+    for hpid in model.ont.names:
+        for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
     hit, total = accuracy.find_phrase_accuracy(model, samples, 5, True)
@@ -257,8 +260,12 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     ont = Ontology('data/hp.obo',"HP:0000118")
     model = new_train(phrase_model.NCRModel(config, ont, word_model))
-#    model = new_train(get_model(args.repdir, config))
     model.save_params(args.repdir)
+    '''
+    model = phrase_model.NCRModel(config, ont, word_model)
+    model.load_params(args.repdir)
+    phrase_test(model)
+    '''
 
 if __name__ == "__main__":
 	main()
