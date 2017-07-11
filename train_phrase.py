@@ -18,7 +18,6 @@ def new_train(model):
     report_len = 20
     num_epochs = 40 
 
-    rd = reader.Reader(model.ont)
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
     training_samples = {}
@@ -28,19 +27,19 @@ def new_train(model):
 
     ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
     negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
-    model.init_training()
+    wiki_text = open('data/wiki_text').read()
+    wiki_negs = create_negatives(wiki_text[:10000000], 10000)
+#    model.init_training()
     model.init_training(negs)
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
-	rd.reset_counter()
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
             if x[0] in model.ont.names:
                 print model.ont.names[x[0]], x[1]
             else:
                 print x[0], x[1]
-        #for x in ant.get_hp_id(['skeletal anomalies'], 10)[0]:
         if ((epoch>0 and epoch % 5 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
             print "R@5 Accuracy on test set ::", float(hit)/total
@@ -118,12 +117,10 @@ def interactive(model):
         sys.stdout.write("\n")
         matches = model.get_hp_id([text],15)
         for x in matches[0]:
-            '''
             if x[0] == 'None':
                 sys.stdout.write(x[0]+' '+str('None')+' '+str(x[1])+'\n')
             else:
-            '''
-            sys.stdout.write(x[0]+' '+str(model.rd.names[x[0]])+' '+str(x[1])+'\n')
+                sys.stdout.write(x[0]+' '+str(model.ont.names[x[0]])+' '+str(x[1])+'\n')
         sys.stdout.write("\n")
 	
 def anchor_test(model):
@@ -259,13 +256,15 @@ def main():
 
     word_model = fasttext.load_model('data/model_pmc.bin')
     ont = Ontology('data/hp.obo',"HP:0000118")
+    '''
     model = new_train(phrase_model.NCRModel(config, ont, word_model))
     model.save_params(args.repdir)
     '''
     model = phrase_model.NCRModel(config, ont, word_model)
     model.load_params(args.repdir)
+    interactive(model)
+    return 
     phrase_test(model)
-    '''
 
 if __name__ == "__main__":
 	main()
