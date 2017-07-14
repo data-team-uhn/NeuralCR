@@ -30,9 +30,13 @@ def new_train(model):
     negs.update(set(wiki_negs))
     model.init_training()
     #model.init_training(negs)
+
+    logfile = open("log","w")
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
+        logfile.write("epoch ::"+str(epoch))
+
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
             if x[0] in model.ont.names:
@@ -47,6 +51,7 @@ def new_train(model):
         if ((epoch>0 and epoch % 20 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
+        sys.stdout.flush()
     return model
 
 def grid_search():
