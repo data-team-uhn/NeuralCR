@@ -2,14 +2,32 @@ import tensorflow as tf
 import numpy as np
 import random
 
+class Config:
+    include_negs = True
+    batch_size = 256
+    cl1 = 1024
+    cl2 = 1024
+
+    max_sequence_length = 50
+    lr = 1.0/512
+
+    word_embed_size = 100
+    @staticmethod
+    def update_with_reader(ont):
+        Config.concepts_size = len(ont.concepts)+1
+
+
+
+
+
 
 def weight_variable(name, shape):
     return tf.get_variable(name, shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
     return tf.get_variable(name, shape, initializer=tf.contrib.layers.xavier_initializer())
 
-def linear(name, x, shape, phase=0):
+def linear(name, x, shape, initializer=tf.random_normal_initializer(stddev=0.1)):
 #    w = tf.get_variable(name+"W", shape, initializer=tf.contrib.layers.xavier_initializer())
-    w = tf.get_variable(name+"W", shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
+    w = tf.get_variable(name+"W", shape = shape, initializer = initializer)
 #    w = weight_variable(name+"W", shape)
     b = tf.get_variable(name+"B", shape = shape[1], initializer = tf.random_normal_initializer(stddev=0.01))
 #    b = weight_variable(name+"B", [shape[1]])
@@ -120,6 +138,7 @@ class NCRModel():
     ##### Creates the model #####
     #############################
     def __init__(self, config, ont, word_model):
+        print "Creating the model graph" 
         tf.reset_default_graph()
         self.ont = ont
         self.word_model = word_model
@@ -143,14 +162,19 @@ class NCRModel():
         #######################
         ## Phrase embeddings ##
         #######################
-        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.contrib.layers.xavier_initializer())
+        #filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl2], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
         conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
-        layer1 = tf.nn.elu(tf.nn.conv1d(self.seq, filters1, 1, padding='SAME') + conv1_b)
+        layer1 = tf.nn.tanh(tf.nn.conv1d(self.seq, filters1, 1, padding='SAME') + conv1_b)
+        self.layer2 = layer1
 
+        '''
         filters2 = tf.get_variable('conv2', [1, self.config.cl1, self.config.cl2], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
         conv2_b = tf.get_variable('0conv2_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl2)
         self.layer2 = tf.nn.elu(tf.nn.conv1d(layer1, filters2, 1, padding='SAME') + conv2_b)
+        '''
 
+        #self.seq_embedding = tf.nn.relu(linear('lassst', tf.reduce_max(self.layer2, [1]), [self.config.cl2, self.config.cl2]))  
         self.seq_embedding = tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(self.layer2, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
         #######################
         #######################
@@ -162,17 +186,28 @@ class NCRModel():
         self.w = tf.get_variable("last_layerWW", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         last_layer_b = tf.get_variable('last_layer'+"B", shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
         self.aggregated_w = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.w) 
+
+        self.final_w = self.aggregated_w
+#        self.final_w = self.w
+
+        #self.final_w = linear('vvfinal', tf.nn.elu(self.aggregated_w), [128, self.config.cl2])
         ########################
         ########################
         ########################
 
-        self.score_layer = tf.matmul(self.seq_embedding, tf.transpose(self.w)) # + last_layer_b
-        #self.score_layer = tf.matmul(self.seq_embedding, tf.transpose(self.aggregated_w))  + last_layer_b
+#        self.score_layer = tf.matmul(self.seq_embedding, tf.transpose(self.w)) # + last_layer_b
+        self.score_layer = tf.matmul(self.seq_embedding, tf.transpose(self.final_w))  + last_layer_b
         self.pred = tf.nn.softmax(self.score_layer)
 
 #        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(label_one_hot, self.score_layer, self.class_weights)) 
         self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
-        self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+        optimizer = tf.train.AdamOptimizer(self.lr)
+        gvs = optimizer.compute_gradients(self.loss)
+        capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gvs]
+        self.train_step = optimizer.apply_gradients(capped_gvs)
+        
+#        self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
         
 
 	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -238,6 +273,7 @@ class NCRModel():
             total_loss += batch_loss
             if ct % report_len == report_len-1:
                 print "Step =", ct+1, "\tLoss =", report_loss/report_len
+                print np.median(self.sess.run(tf.reduce_sum(tf.abs(self.final_w), axis=-1)))
                 #sys.stdout.flush()
                 report_loss = 0
             ct += 1
@@ -303,8 +339,8 @@ class NCRModel():
         seq, seq_len = self.phrase2vec(querry, self.config.max_sequence_length)
 
         querry_dict = {self.seq : seq, self.seq_len: seq_len}
-        res_querry = self.sess.run(self.score_layer, feed_dict = querry_dict)
-        #res_querry = self.sess.run(self.pred, feed_dict = querry_dict)
+#        res_querry = self.sess.run(self.score_layer, feed_dict = querry_dict)
+        res_querry = self.sess.run(self.pred, feed_dict = querry_dict)
 
         results=[]
         for s in range(len(querry)):

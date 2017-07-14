@@ -1,11 +1,9 @@
 import argparse
-import phraseConfig
 import phrase_model 
 import accuracy
 import fasttext_reader as reader
 import numpy as np
 import sys
-import sent_level
 import sent_accuracy
 import time
 import os
@@ -16,7 +14,7 @@ import fasttext
 
 def new_train(model):
     report_len = 20
-    num_epochs = 40 
+    num_epochs = 50 
 
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
@@ -29,8 +27,9 @@ def new_train(model):
     negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
     wiki_text = open('data/wiki_text').read()
     wiki_negs = create_negatives(wiki_text[:10000000], 10000)
-#    model.init_training()
-    model.init_training(negs)
+    negs.update(set(wiki_negs))
+    model.init_training()
+    #model.init_training(negs)
     
     for epoch in range(num_epochs):
         print "epoch ::", epoch
@@ -45,13 +44,13 @@ def new_train(model):
             print "R@5 Accuracy on test set ::", float(hit)/total
             hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
             print "R@1 Accuracy on test set ::", float(hit)/total
-        if ((epoch>0 and epoch % 10 == 0)) or epoch == num_epochs-1:
+        if ((epoch>0 and epoch % 20 == 0)) or epoch == num_epochs-1:
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
     return model
 
 def grid_search():
-    config = phraseConfig.Config
+    config = phrase_model.Config
     rd = reader.Reader(open("data/hp.obo"), False)
     config.update_with_reader(rd)
 
@@ -152,6 +151,17 @@ def get_model(repdir, config):
     model.load_params(repdir)
     return model
 
+def create_negatives(text, num):
+    neg_tokens = phrase_model.tokenize(text)
+
+    indecies = np.random.choice(len(neg_tokens), num)
+    lengths = np.random.randint(1, 10, num)
+
+    negative_phrases = [' '.join(neg_tokens[indecies[i]:indecies[i]+lengths[i]])
+                                for i in range(num)]
+    return negative_phrases
+
+
 def sent_test(model, threshold=0.6):
   #  model.set_anchors()
     #text_ant = sent_level.TextAnnotator(model)
@@ -204,7 +214,7 @@ def main():
     parser.add_argument('--udp_prefix', help="", default="chert")
     args = parser.parse_args()
 
-    config = phraseConfig.Config
+    config = phrase_model.Config
 #    udp_test(get_model(args.repdir, config), args.udp_prefix+".txt", args.udp_prefix+".phe", args.udp_prefix+".txt.bk")
 #    interactive_sent(get_model(args.repdir, config))
 #    exit()
@@ -253,10 +263,10 @@ def main():
     #exit()
 
     #grid_search()
-
+    print "Loading word model" 
     word_model = fasttext.load_model('data/model_pmc.bin')
+    print "Loading ontology" 
     ont = Ontology('data/hp.obo',"HP:0000118")
-    '''
     model = new_train(phrase_model.NCRModel(config, ont, word_model))
     model.save_params(args.repdir)
     '''
@@ -265,6 +275,7 @@ def main():
     interactive(model)
     return 
     phrase_test(model)
+    '''
 
 if __name__ == "__main__":
 	main()
