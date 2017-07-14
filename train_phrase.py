@@ -36,6 +36,7 @@ def new_train(model):
     for epoch in range(num_epochs):
         print "epoch ::", epoch
         logfile.write("epoch ::"+str(epoch))
+        logfile.flush()
 
         model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
@@ -52,6 +53,7 @@ def new_train(model):
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
         sys.stdout.flush()
+    logfile.close()
     return model
 
 def grid_search():
