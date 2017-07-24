@@ -52,7 +52,7 @@ def main():
 #    model.set_anchors()
 
 
-    for theta in [0.5, 0.6, 0.7, 0.8]:
+    for theta in [0.4, 0.5, 0.6, 0.7]:
         ct=0
         output_dir = args.output_dir+"/res_"+str(theta)+"/"
         #output_dir = args.output_dir+"/res_"+str(theta)+"_"+str(theta2)+"/"

@@ -10,14 +10,50 @@ import os
 import h5py
 from onto import Ontology
 import fasttext
- 
+
+class Ensemle():
+    def __init__(self, models, ont):
+        self.models = models
+        self.ont = ont
+
+    def get_probs(self, querry):
+        for i,m in enumerate(self.models):
+            if i==0:
+                res_querry = m.get_probs(querry)
+            else:
+                res_querry += m.get_probs(querry)
+        return res_querry/len(self.models)
+
+    def get_hp_id(self, querry, count=1):
+        res_querry = self.get_probs(querry)
+        results=[]
+        for s in range(len(querry)):
+            indecies_querry = np.argsort(-res_querry[s,:])
+
+            tmp_res = []
+            for i in indecies_querry:
+                '''
+                print i
+                '''
+                if i == len(self.ont.concepts):
+                    tmp_res.append(('None',res_querry[s,i]))
+                else:
+                    tmp_res.append((self.ont.concepts[i],res_querry[s,i]))
+                if len(tmp_res)>=count:
+                        break
+            results.append(tmp_res)
+
+        return results
 
 def new_train(model):
     report_len = 20
-    num_epochs = 50 
+    num_epochs = 120
 
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
+    val_set = dict( [x for x in samples.iteritems()][:200])
+    test_set = dict( [x for x in samples.iteritems()][200:])
+
     training_samples = {}
     for hpid in model.ont.names:
         for s in model.ont.names[hpid]:
@@ -31,28 +67,39 @@ def new_train(model):
     model.init_training()
     #model.init_training(negs)
 
-    logfile = open("log","w")
-    
+    logfile = open('logfile.txt', 'w')
+
     for epoch in range(num_epochs):
         print "epoch ::", epoch
-        logfile.write("epoch ::"+str(epoch))
-        logfile.flush()
 
-        model.train_epoch()
+        loss = model.train_epoch()
         for x in model.get_hp_id(['retina cancer'], 10)[0]:
             if x[0] in model.ont.names:
                 print model.ont.names[x[0]], x[1]
             else:
                 print x[0], x[1]
-        if ((epoch>0 and epoch % 5 == 0)) or epoch == num_epochs-1:
+        print "-------"
+        for x in model.get_hp_id(['retinoblastoma'], 10)[0]:
+            if x[0] in model.ont.names:
+                print model.ont.names[x[0]], x[1]
+            else:
+                print x[0], x[1]
+        if (epoch>0 and epoch % 5 == 0) or epoch == num_epochs-1:
+            logfile.write('epoch\t'+str(epoch)+'\n')
+            logfile.write('loss\t'+str(loss)+'\n')
+
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
-            print "R@5 Accuracy on test set ::", float(hit)/total
+            logfile.write('r5\t'+str(float(hit)/total)+'\n')
+            print "R@5 Accuracy on val set ::", float(hit)/total
+
             hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
-            print "R@1 Accuracy on test set ::", float(hit)/total
-        if ((epoch>0 and epoch % 20 == 0)) or epoch == num_epochs-1:
+            logfile.write('r1\t'+str(float(hit)/total)+'\n')
+            print "R@1 Accuracy on val set ::", float(hit)/total
+        if False and ( ((epoch>0 and epoch % 160 == 0)) or epoch == num_epochs-1 ): 
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
         sys.stdout.flush()
+        logfile.flush()
     logfile.close()
     return model
 
@@ -100,19 +147,17 @@ def grid_search():
                                         '\tr1: '+ str(r1) +\
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
-def interactive_sent(model):
-#    model.set_anchors()
-    textAnt = sent_level.TextAnnotator(model)
+def interactive_sent(model, threshold=0.5):
     while True:
         print "Enter querry:"
         text = sys.stdin.readline()
         if text == "":
             break
         start_time = time.time()
-        results = textAnt.process_text(text, 0.6, True)
+        results = model.process_text(text, threshold)
         end_time = time.time()
         for res in results:
-            print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", model.rd.names[res[2]]
+            print "["+str(res[0])+"::"+str(res[1])+"]\t" , res[2], "|", text[res[0]:res[1]], "\t", res[3], "\t", model.ont.names[res[2]]
         print "Time elapsed: "+ ("%.2f" % (end_time-start_time)) + "s"
 
 def interactive(model):
@@ -173,7 +218,7 @@ def sent_test(model, threshold=0.6):
   #  model.set_anchors()
     #text_ant = sent_level.TextAnnotator(model)
     #sent_window_func = lambda text: [x[2] for x in text_ant.process_text(text, 0.6, True )]
-    sent_window_func = lambda text: [x[2] for x in model.annotate_text(text,threshold)]
+    sent_window_func = lambda text: [x[2] for x in model.process_text(text,threshold)]
     sent_accuracy.find_sent_accuracy(sent_window_func, "labeled_sentences.p", model.rd)
     #sent_accuracy.compare_methods(sent_accuracy.biolark_wrapper.process_sent, sent_window_func, "labeled_sentences.p", model.rd)
 
@@ -184,15 +229,15 @@ def phrase_test(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
-    hit, total = accuracy.find_phrase_accuracy(model, samples, 5, True)
+    hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
     r5 = float(hit)/total
     print "R@5 Accuracy on test set ::", r5
     hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
     r1 = float(hit)/total
     print "R@1 Accuracy on test set ::", r1
-    hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
-    tr1 = float(hit)/total
-    print "R@1 Accuracy on training set ::", tr1
+    #hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
+    #tr1 = float(hit)/total
+    #print "R@1 Accuracy on training set ::", tr1
 
 def udp_test(model, text_file, phe_file, bk_file):
     retrieved = []
@@ -274,8 +319,23 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
     ont = Ontology('data/hp.obo',"HP:0000118")
+    model = phrase_model.NCRModel(config, ont, word_model)
+    model.load_params(args.repdir)
+    interactive_sent(model, 0.4)
+    #interactive(model)
     model = new_train(phrase_model.NCRModel(config, ont, word_model))
     model.save_params(args.repdir)
+
+    '''
+    models = [new_train(phrase_model.NCRModel(config, ont, word_model)) for i in range(5)]
+    ens = Ensemle(models, ont)
+    for i,m in enumerate(models):
+        print "model",i
+        phrase_test(m)
+    print "Ensemle model"
+    phrase_test(ens)
+    '''
+
     '''
     model = phrase_model.NCRModel(config, ont, word_model)
     model.load_params(args.repdir)
