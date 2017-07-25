@@ -140,7 +140,7 @@ class NCRModel():
         layer2 = tf.layers.dense(layer1_pooled, self.config.cl2, tf.nn.relu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
         self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
-        self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
+        #self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
 
         ########################
         ## Concept embeddings ##
@@ -161,9 +161,14 @@ class NCRModel():
         ########################
 
         self.pred = tf.nn.softmax(self.score_layer)
-        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
+#        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
 #        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) 
+        label_one_hot = tf.one_hot(self.label, config.concepts_size)
 
+        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
+
+
+        '''
         optimizer = tf.train.AdamOptimizer(self.lr)
         gvs = optimizer.compute_gradients(self.loss)
         capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gvs]
@@ -172,7 +177,8 @@ class NCRModel():
         with tf.control_dependencies(update_ops):
             self.train_step = optimizer.apply_gradients(capped_gvs)
         
-#        self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+        '''
+        self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
         
 
 	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
