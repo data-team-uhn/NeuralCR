@@ -127,7 +127,11 @@ class NCRModel():
         filters = [self.config.cl1]
         #filters = [self.config.cl1, self.config.cl1/4, self.config.cl1/4]
         grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.elu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=False) for i in range(len(filters))]
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters))]
+
+        filters2 = [self.config.cl2]
+        grams = [tf.layers.conv1d(grams[i], filters2[i], i+1, activation=tf.nn.elu,\
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters2))]
         #grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.tanh,\
         #        kernel_initializer=tf.contrib.layers.xavier_initializer(), use_bias=False) for i in range(len(filters))]
         grams_pooled = [tf.reduce_max(gram, [1]) for gram in grams]

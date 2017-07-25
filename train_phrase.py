@@ -47,7 +47,7 @@ class Ensemle():
 
 def new_train(model):
     report_len = 20
-    num_epochs = 120
+    num_epochs = 30
 
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
@@ -59,12 +59,13 @@ def new_train(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
-    ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
-    negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
+   # ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
+    #negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
     wiki_text = open('data/wiki_text').read()
     wiki_negs = create_negatives(wiki_text[:10000000], 10000)
-    negs.update(set(wiki_negs))
-    model.init_training()
+   # negs.update(set(wiki_negs))
+#    model.init_training()
+    model.init_training(wiki_negs)
     #model.init_training(negs)
 
     logfile = open('logfile.txt', 'w')
@@ -319,9 +320,9 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
     ont = Ontology('data/hp.obo',"HP:0000118")
-    model = phrase_model.NCRModel(config, ont, word_model)
-    model.load_params(args.repdir)
-    interactive_sent(model, 0.4)
+#    model = phrase_model.NCRModel(config, ont, word_model)
+#    model.load_params(args.repdir)
+#    interactive_sent(model, 0.4)
     #interactive(model)
     model = new_train(phrase_model.NCRModel(config, ont, word_model))
     model.save_params(args.repdir)
