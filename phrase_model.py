@@ -147,7 +147,8 @@ class NCRModel():
         ########################
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
+        aggregated_w = self.aggregated_embeddings
+        #aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
         last_layer_b = tf.get_variable('last_layer_bias', shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
 
 #        direct_score_layer = tf.layers.dense(self.seq_embedding, self.config.concepts_size,\
@@ -161,23 +162,22 @@ class NCRModel():
         ########################
 
         self.pred = tf.nn.softmax(self.score_layer)
-#        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
+        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
 #        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) 
-        label_one_hot = tf.one_hot(self.label, config.concepts_size)
 
-        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
 
 
         '''
         optimizer = tf.train.AdamOptimizer(self.lr)
-        gvs = optimizer.compute_gradients(self.loss)
-        capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gvs]
+        gradients, variables = zip(*optimizer.compute_gradients(self.loss))
+        gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            self.train_step = optimizer.apply_gradients(capped_gvs)
-        
+            self.train_step = optimizer.apply_gradients(zip(gradients, variables))
+            #self.train_step = optimizer.apply_gradients(capped_gvs)
         '''
+        
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
         
 

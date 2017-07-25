@@ -42,7 +42,7 @@ def main():
 
 
     #'''
-    config = phraseConfig.Config
+    config = phrase_model.Config
     word_model = fasttext.load_model('data/model_pmc.bin')
     ont = Ontology('data/hp.obo',"HP:0000118")
     model = phrase_model.NCRModel(config, ont, word_model)
@@ -52,7 +52,8 @@ def main():
 #    model.set_anchors()
 
 
-    for theta in [0.4, 0.5, 0.6, 0.7]:
+    for theta in [0.7]:
+    #for theta in [0.4, 0.5, 0.6, 0.7]:
         ct=0
         output_dir = args.output_dir+"/res_"+str(theta)+"/"
         #output_dir = args.output_dir+"/res_"+str(theta)+"_"+str(theta2)+"/"
