@@ -195,10 +195,10 @@ def main():
 
     config = phraseConfig.Config
 #    udp_test(get_model(args.repdir, config), args.udp_prefix+".txt", args.udp_prefix+".phe", args.udp_prefix+".txt.bk")
-    interactive_sent(get_model(args.repdir, config))
+    #interactive_sent(get_model(args.repdir, config))
     #sent_test(get_model(args.repdir, config))
     #phrase_test(get_model(args.repdir, config))
-    exit()
+    #exit()
     #anchor_test(get_model(args.repdir, config))
 
     #interactive(get_model(args.repdir, config)) 

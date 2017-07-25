@@ -28,11 +28,14 @@ def main():
 
     for theta in [0.7]:
     #for theta in [0.1, 0.3, 0.5, 0.7, 0.9]:
+        output_dir = args.output_dir+"/res_"+str(theta)+"/"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)        
         for filename in os.listdir(args.input_dir):
-            print filename
+            print output_dir+"/"+filename
             text = open(args.input_dir+"/"+filename).read()
             predictions = text_ant.process_text(text, theta)
-            with open(args.output_dir+"_"+str(theta)+"/"+filename,"w") as fw:
+            with open(output_dir+"/"+filename,"w") as fw:
                 for y in predictions:
                     fw.write(y[2]+"\n")
 
