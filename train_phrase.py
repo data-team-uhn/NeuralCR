@@ -10,6 +10,7 @@ import os
 import h5py
 from onto import Ontology
 import fasttext
+from eval import eval
 
 class Ensemle():
     def __init__(self, models, ont):
@@ -45,9 +46,107 @@ class Ensemle():
 
         return results
 
+def create_output_dir(model, theta, data_dir, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    ct=0
+    for filename in os.listdir(data_dir):
+        ct+=1
+        #if ct%5==0:
+        #    print ct
+        #if ct ==10:
+        #    break
+        #if os.path.isfile(output_dir+"/"+filename):
+        #    continue
+        text = open(data_dir+filename).read()
+        predictions = model.process_text(text, theta)
+ 
+
+        with open(output_dir+"/"+filename,"w") as fw:
+            for y in predictions:
+                fw.write(y[2]+"\n")
+
+def print_res(results):
+    res_print = []
+    for style in ["micro", "vanila"]: 
+        for acc_type in ["precision", "recall", "fmeasure"]: 
+            res_print.append(results[style][acc_type])
+    res_print.append(results['jaccard'])
+    return "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
+
+def experiment(model, exp_name):
+    outfile = open("report_" + exp_name + ".txt","a")
+    print "Exp:", exp_name
+    outfile.write("Exp: " + exp_name +"\n")
+    outfile.flush()
+    num_epochs = 40
+    for epoch in range(num_epochs):
+        model.train_epoch(verbose=False)
+
+    param_dir = "params_"+exp_name
+    if not os.path.exists(param_dir):
+        os.makedirs(param_dir)
+    model.save_params(param_dir)
+
+    samplesFile = open("data/labeled_data")
+    samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
+    hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
+    print "R@5 Accuracy on val set ::", float(hit)/total
+    outfile.write("R@5 Accuracy on val set ::" + str(float(hit)/total) +"\n")
+
+    hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
+    print "R@1 Accuracy on val set ::", float(hit)/total
+    outfile.write("R@1 Accuracy on val set ::" + str(float(hit)/total) +"\n")
+
+    abstracts = '../../datasets/abstracts/'
+    udp_data = '../../datasets/udp/'
+    omim_data = '../../datasets/littleomim/'
+
+    output_dir_prefix = "outputs_" + exp_name + "_"
+    abstracts_vallist_file = 'validation_abstracts'
+    abstracts_testlist_file = 'test_abstracts'
+
+    best_micro = -1
+    for theta in [0.7, 0.6, 0.8, 0.65, 0.75]:
+        output_dir = output_dir_prefix + 'abstracts_'+ str(theta)+"/"
+        create_output_dir(model, theta, abstracts+"/text/", output_dir)
+        #results = eval(abstracts+"labels/", output_dir, os.listdir(abstracts+"/text/")[:8], model.ont)
+        results = eval(abstracts+"labels/", output_dir, open(abstracts_vallist_file).readlines(), model.ont)
+        if best_micro < results['micro']['fmeasure']:
+            best_micro = results['micro']['fmeasure']
+            best_theta = theta
+            #test_results_for_best_theta = eval(abstracts+"labels/", output_dir, os.listdir(abstracts+"/text/")[:8], model.ont)
+            test_results_for_best_theta = eval(abstracts+"labels/", output_dir, open(abstracts_testlist_file).readlines(), model.ont)
+
+    print "Validation threshold:", best_theta
+    outfile.write("Validation threshold:"+ str(best_theta) +"\n")
+    print "Abstract test results:"
+    outfile.write("Abstract test results:\n")
+    print print_res(test_results_for_best_theta)
+    outfile.write(print_res(test_results_for_best_theta)+"\n")
+
+    udp_output_dir = output_dir_prefix+'udp_'+str(best_theta)+"/"
+    create_output_dir(model, best_theta, udp_data+"/text/", udp_output_dir)
+    udp_results = eval(udp_data+"labels/", udp_output_dir, os.listdir(udp_data+"/text/"), model.ont)
+    #udp_results = eval(udp_data+"labels/", udp_output_dir, os.listdir(udp_data+"/text/")[:8], model.ont)
+    print "UDP test results:"
+    outfile.write("UDP test results:\n")
+    print print_res(udp_results)
+    outfile.write(print_res(udp_results)+"\n")
+
+    omim_output_dir = output_dir_prefix+'omim_'+str(best_theta)+"/"
+    create_output_dir(model, best_theta, omim_data+"/text/", omim_output_dir)
+    omim_results = eval(omim_data+"labels/", omim_output_dir, os.listdir(omim_data+"/text/"), model.ont)
+    print "OMIM test results:"
+    outfile.write("OMIM test results:\n")
+    print print_res(omim_results)
+    outfile.write(print_res(omim_results)+"\n")
+
+    outfile.flush()
+
 def new_train(model):
     report_len = 20
-    num_epochs = 30
+    num_epochs = 40
 
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
@@ -59,14 +158,16 @@ def new_train(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
-   # ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
-    #negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
+    ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
+    uberon_negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
+
     wiki_text = open('data/wiki_text').read()
-    wiki_negs = create_negatives(wiki_text[:10000000], 10000)
-   # negs.update(set(wiki_negs))
-#    model.init_training()
+    wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
+
+    #model.init_training()
+    #model.init_training(set.union(wiki_negs,uberon_negs))
     model.init_training(wiki_negs)
-    #model.init_training(negs)
+    #model.init_training(uberon_negs)
 
     logfile = open('logfile.txt', 'w')
 
@@ -320,12 +421,41 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
     ont = Ontology('data/hp.obo',"HP:0000118")
+
+    model = phrase_model.NCRModel(config, ont, word_model)
+
+    '''
+    wiki_text = open('data/wiki_text').read()
+    wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
+    model.init_training(wiki_negs)
+    model.init_training()
+    experiment(model, 'wiki_aggregate_aug24')
+    exit()
+    '''
+    model.load_params('params_wiki_aggregate_aug24/')
+    interactive_sent(model, 0.7)
+    
+
 #    model = phrase_model.NCRModel(config, ont, word_model)
-#    model.load_params(args.repdir)
-#    interactive_sent(model, 0.4)
+    '''
+    model.load_params('params_wiki_aggregate_noclassw/')
+    best_theta = 0.6
+    exp_name = 'wiki_aggregate_noclassw_foromim'
+    output_dir_prefix = "outputs_" + exp_name + "_"
+    omim_output_dir = output_dir_prefix+'omim_'+str(best_theta)+"/"
+    omim_data = '../../datasets/littleomim/'
+    create_output_dir(model, best_theta, omim_data+"/text/", omim_output_dir)
+    omim_results = eval(omim_data+"labels/", omim_output_dir, os.listdir(omim_data+"/text/"), model.ont)
+    print "omim test results:"
+    print print_res(omim_results)
+    '''
+
+
+##    interactive_sent(model, 0.6)
+#    phrase_test(model)
     #interactive(model)
-    model = new_train(phrase_model.NCRModel(config, ont, word_model))
-    model.save_params(args.repdir)
+    #model = new_train(phrase_model.NCRModel(config, ont, word_model))
+    #model.save_params(args.repdir)
 
     '''
     models = [new_train(phrase_model.NCRModel(config, ont, word_model)) for i in range(5)]

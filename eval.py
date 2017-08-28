@@ -12,7 +12,8 @@ import os
 from onto import Ontology
 
 def normalize(ont, hpid_filename):
-    raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
+    raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines() if x.replace("_",":").strip() in ont.real_id]
+    #raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
     return set([x for x in raw if x in ont.concepts])
 
 def get_all_ancestors(ont, hit_list):
@@ -28,8 +29,10 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
     total_true_pos = 0
 
     jaccard_sum = 0
+    false_pos_all = {}
 
-    for filename in open(file_list).readlines():
+    for filename in file_list:
+    #for filename in open(file_list).readlines():
         filename = filename.strip()
         real = normalize(ont, label_dir+"/"+filename)
         extended_real = get_all_ancestors(ont, real)
@@ -39,18 +42,25 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
         positives = normalize(ont, output_dir+"/"+filename)
         extended_positives = get_all_ancestors(ont, positives)
         true_pos = [x for x in positives if x in real]
+        false_pos = [x for x in positives if x not in real]
+        for x in false_pos:
+            if x not in false_pos_all:
+                false_pos_all[x] = 0
+            false_pos_all[x] += 1
 
-        precision = 1
+
+        precision = 0
         if len(positives)!=0:
             precision = 1.0*len(true_pos)/len(positives)
 
-        recall = 1
+        recall = 0
         if len(real)!=0:
             recall = 1.0*len(true_pos)/len(real)
 
         total_docs += 1
         total_precision += precision
         total_recall += recall
+        #print filename, '\t', precision, '\t', recall
 
         total_relevant += len(real)
         total_positives += len(positives)
@@ -71,12 +81,17 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
     recall = total_recall/total_docs
     fmeasure = 2.0*precision*recall/(precision+recall)
 
-    mprecision = 1.0*total_true_pos/total_positives
+    if total_positives>0:
+        mprecision = 1.0*total_true_pos/total_positives
+    else:
+        mprecision = 1.0
     mrecall = 1.0*total_true_pos/total_relevant
     mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
 
     jaccard_mean = jaccard_sum/total_docs
 
+    for hp,ct in sorted(false_pos_all.iteritems(), key=lambda (k,v): (-v,k)):
+        print hp, ont.names[hp][0], ct
     ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}, "jaccard":jaccard_mean}
     return ret
     print "Precision:", precision
@@ -121,13 +136,16 @@ def main():
     args = parser.parse_args()
 
     ont = Ontology('data/hp.obo',"HP:0000118")
-    results = eval(args.label_dir, args.output_dir, args.file_list, ont, args.comp_dir)
+    results = eval(args.label_dir, args.output_dir, open(args.file_list).readlines(), ont, args.comp_dir)
     res_print = []
     for style in ["micro", "vanila"]: 
         for acc_type in ["precision", "recall", "fmeasure"]: 
             res_print.append(results[style][acc_type])
     res_print.append(results['jaccard'])
-    print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
+
+    res_print = [x*100 for x in res_print]
+    print "%.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f\\\\" % tuple(res_print)
+    #print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
 
     #roc(args.label_dir, args.output_dir, args.file_list, rd)
 if __name__ == "__main__":

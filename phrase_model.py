@@ -32,6 +32,15 @@ def tokenize(phrase):
     tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').replace('.', ' . ').strip().split()
     return ["INT" if w.isdigit() else ("FLOAT" if is_number(w) else w) for w in tmp]
 
+def linear_sparse(name, x, shape):
+#    w = tf.get_variable(name+"W", shape, initializer=tf.contrib.layers.xavier_initializer())
+    w = tf.get_variable(name+"W", shape = shape, initializer = tf.random_normal_initializer(stddev=0.1))
+#    w = weight_variable(name+"W", shape)
+#    b = tf.get_variable(name+"B", shape = shape[1], initializer = tf.random_normal_initializer(stddev=0.1))
+#    b = weight_variable(name+"B", [shape[1]])
+    return tf.sparse_tensor_dense_matmul(x,w) #+ b
+
+
 class NCRModel():
     def phrase2vec(self, phrase_list, max_length):
         phrase_vec_list = []
@@ -44,6 +53,7 @@ class NCRModel():
         return np.array(phrase_vec_list), np.array(phrase_seq_lengths)
 
     def process_text(self, text, threshold=0.5):
+#        chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").replace("-","|").split("|")
         chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
         candidates = []
         candidates_info = []
@@ -98,6 +108,16 @@ class NCRModel():
         return final
 
 
+    '''
+    def get_score(self, embedding):
+        last_layer_w =  linear_sparse('last_layerW', self.ancestry_sparse_tensor, [self.config.concepts_size, self.config.cl2])
+        last_layer_b = tf.get_variable('last_layer'+"B", shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
+
+        score_layer = tf.matmul(embedding, tf.transpose(last_layer_w))  + last_layer_b
+        return score_layer
+    '''
+
+
     #############################
     ##### Creates the model #####
     #############################
@@ -124,23 +144,46 @@ class NCRModel():
         ## Phrase embeddings ##
         #######################
 
+        '''
         filters = [self.config.cl1]
         #filters = [self.config.cl1, self.config.cl1/4, self.config.cl1/4]
         grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.elu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters))]
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1), bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True) for i in range(len(filters))]
 
-        filters2 = [self.config.cl2]
-        grams = [tf.layers.conv1d(grams[i], filters2[i], i+1, activation=tf.nn.elu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters2))]
-        #grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.tanh,\
-        #        kernel_initializer=tf.contrib.layers.xavier_initializer(), use_bias=False) for i in range(len(filters))]
+        grams = [grams[i]*tf.expand_dims(tf.sequence_mask(tf.maximum(self.seq_len-i,0), config.max_sequence_length-i, dtype=tf.float32),axis=-1) for i in range(len(filters))]
+                #kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters))]
+
+        #filters2 = [self.config.cl2]
+        #grams = [tf.layers.conv1d(grams[i], filters2[i], i+1, activation=tf.nn.elu,\
+        #        kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters2))]
+
         grams_pooled = [tf.reduce_max(gram, [1]) for gram in grams]
         layer1_pooled = tf.concat(grams_pooled, axis=-1)
-
         layer2 = tf.layers.dense(layer1_pooled, self.config.cl2, tf.nn.relu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
         self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
         #self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
+
+
+
+        '''
+
+        layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.elu,\
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1),\
+                bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True)
+
+        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, tf.nn.relu,\
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
+
+        self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
+
+        '''
+        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
+        conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
+        layer1 = tf.nn.elu(tf.nn.conv1d(self.seq, filters1, 1, padding='SAME') + conv1_b)
+        '''
+
+        #self.seq_embedding = tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(layer1, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
 
         ########################
         ## Concept embeddings ##
@@ -148,6 +191,7 @@ class NCRModel():
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
         aggregated_w = self.aggregated_embeddings
+#        aggregated_w = self.embeddings
         #aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
         last_layer_b = tf.get_variable('last_layer_bias', shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
 
@@ -161,11 +205,18 @@ class NCRModel():
         ########################
         ########################
 
-        self.pred = tf.nn.softmax(self.score_layer)
-        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
+        #self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
 #        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) 
 
 
+#        self.seq_embedding = self.apply_meanpool(self.seq, self.seq_len)
+#        self.score_layer = self.get_score(self.seq_embedding)
+        label_one_hot = tf.one_hot(self.label, config.concepts_size)
+
+
+        self.pred = tf.nn.softmax(self.score_layer)
+        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
+#        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
 
         '''
         optimizer = tf.train.AdamOptimizer(self.lr)
@@ -212,7 +263,7 @@ class NCRModel():
         self.training_samples['seq'], self.training_samples['seq_len'] = self.phrase2vec(raw_samples, self.config.max_sequence_length)
         self.training_samples['label'] = np.array(labels)
 
-    def train_epoch(self):
+    def train_epoch(self, verbose=True):
 	ct = 0
 	report_loss = 0
 	total_loss = 0
@@ -235,7 +286,7 @@ class NCRModel():
 
             report_loss += batch_loss
             total_loss += batch_loss
-            if ct % report_len == report_len-1:
+            if verbose and ct % report_len == report_len-1:
                 print "Step =", ct+1, "\tLoss =", report_loss/report_len
                 #print np.median(self.sess.run(tf.norm(self.final_w, axis=-1)))
                 #print np.median(self.sess.run(tf.norm(self.w, axis=-1)))
@@ -257,7 +308,19 @@ class NCRModel():
     def get_hp_id(self, querry, count=1):
         #if self.anchors_set:
         #    return self.get_hp_id_from_anchor(querry, count)
-        res_querry = self.get_probs(querry)
+        batch_size = 512
+        head = 0
+
+        while head < len(querry):
+            querry_subset = querry[head:min(head+batch_size, len(querry))]
+            if head == 0:
+                res_querry = self.get_probs(querry_subset)
+            else:
+                res_querry = np.concatenate((res_querry,self.get_probs(querry_subset)))
+            head += batch_size
+
+        #res_querry = self.get_probs(querry)
+
         results=[]
         for s in range(len(querry)):
             indecies_querry = np.argsort(-res_querry[s,:])
