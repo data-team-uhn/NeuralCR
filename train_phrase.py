@@ -249,6 +249,14 @@ def grid_search():
                                         '\tr1: '+ str(r1) +\
                                         '\ttr1: '+ str(tr1)+ "\n")                            
 
+def process_text_file(model, filename, threshold=0.5):
+    outfile = open("big_text_falsepos_results","w")
+#   text = open('big_text_falsepos').read() ##
+    text = open(filename).read() ##
+    results = model.process_text(text, threshold)
+    for res in results:
+        outfile.write("["+str(res[0])+"::"+str(res[1])+"]\t"+str(res[2])+" | "+text[res[0]:res[1]]+"\t"+str(res[3])+"\t"+str(model.ont.names[res[2]])+"\n")
+    outfile.close()
 def interactive_sent(model, threshold=0.5):
     while True:
         print "Enter querry:"
@@ -433,7 +441,10 @@ def main():
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')
-    interactive_sent(model, 0.7)
+    filename = 'big_text_falsepos'
+    process_text_file(model, filename, 0.7) 
+    #interactive_sent(model, 0.7)
+    exit()
     
 
 #    model = phrase_model.NCRModel(config, ont, word_model)

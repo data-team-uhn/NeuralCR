@@ -43,6 +43,8 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
         extended_positives = get_all_ancestors(ont, positives)
         true_pos = [x for x in positives if x in real]
         false_pos = [x for x in positives if x not in real]
+        if "HP:0001263" in false_pos:
+            print filename
         for x in false_pos:
             if x not in false_pos_all:
                 false_pos_all[x] = 0
