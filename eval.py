@@ -1,18 +1,9 @@
 import argparse
-import phraseConfig
-import phrase_model 
-import accuracy
-import fasttext_reader as reader
-import numpy as np
-import sys
-import sent_level
-import sent_accuracy
-import time
-import os
 from onto import Ontology
 
 def normalize(ont, hpid_filename):
-    raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines() if x.replace("_",":").strip() in ont.real_id]
+    raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines() if x.replace("_",":").strip() in ont.real_id] 
+    # and x.replace("_",":").strip()!="HP:0003220" and x.replace("_",":").strip()!="HP:0001263"and x.replace("_",":").strip()!="HP:0001999"]
     #raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
     return set([x for x in raw if x in ont.concepts])
 

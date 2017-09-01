@@ -432,12 +432,11 @@ def main():
 
     model = phrase_model.NCRModel(config, ont, word_model)
 
-    '''
     wiki_text = open('data/wiki_text').read()
     wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
     model.init_training(wiki_negs)
     model.init_training()
-    experiment(model, 'wiki_aggregate_aug24')
+    experiment(model, 'wiki_aggregate_aug28')
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')
@@ -445,6 +444,7 @@ def main():
     process_text_file(model, filename, 0.7) 
     #interactive_sent(model, 0.7)
     exit()
+    '''
     
 
 #    model = phrase_model.NCRModel(config, ont, word_model)
