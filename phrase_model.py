@@ -7,9 +7,10 @@ class Config:
     batch_size = 256
     cl1 = 1024
     cl2 = 1024
+    cl3 = 512
 
     max_sequence_length = 50
-    lr = 1.0/512
+    lr = 1.0/512 
 
     word_embed_size = 100
     @staticmethod
@@ -39,6 +40,9 @@ def linear_sparse(name, x, shape):
 #    b = tf.get_variable(name+"B", shape = shape[1], initializer = tf.random_normal_initializer(stddev=0.1))
 #    b = weight_variable(name+"B", [shape[1]])
     return tf.sparse_tensor_dense_matmul(x,w) #+ b
+
+def euclid_dis_cartesian(v, u):
+    return tf.reduce_sum(v*v, 1, keep_dims=True) + tf.expand_dims(tf.reduce_sum(u*u, 1), 0) - 2 * tf.matmul(v,u, transpose_b=True) 
 
 
 class NCRModel():
@@ -147,7 +151,7 @@ class NCRModel():
         '''
         filters = [self.config.cl1]
         #filters = [self.config.cl1, self.config.cl1/4, self.config.cl1/4]
-        grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.elu,\
+        grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.relu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1), bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True) for i in range(len(filters))]
 
         grams = [grams[i]*tf.expand_dims(tf.sequence_mask(tf.maximum(self.seq_len-i,0), config.max_sequence_length-i, dtype=tf.float32),axis=-1) for i in range(len(filters))]
@@ -168,14 +172,43 @@ class NCRModel():
 
         '''
 
+        '''
+        layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.tanh,\
+                kernel_initializer=tf.contrib.layers.xavier_initializer(),\
+                bias_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True)
+        '''
+
+
+        #########
         layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.elu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1),\
                 bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True)
 
-        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, tf.nn.relu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
+        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.elu,\
+        #layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.relu,\
+                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
+                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
 
-        self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
+        layer3 = tf.layers.dense(layer2, self.config.cl3, activation=tf.nn.tanh,\
+                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
+                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
+        #########
+        '''
+        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl1, tf.nn.tanh,\
+                kernel_initializer=tf.contrib.layers.xavier_initializer(),\
+                bias_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True)
+
+        layer3 = tf.layers.dense(layer2, self.config.cl2,\
+                kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
+        '''
+
+        #self.seq_embedding = layer3
+        #cell = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(128) for _ in range(1)])
+        #outputs, state = tf.nn.dynamic_rnn(cell, self.seq, self.seq_len, dtype=tf.float32)
+        
+        #self.seq_embedding = state
+#        self.seq_embedding = layer3
+        self.seq_embedding = tf.nn.l2_normalize(layer3  , dim=1)
 
         '''
         filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
@@ -188,17 +221,26 @@ class NCRModel():
         ########################
         ## Concept embeddings ##
         ########################
-        self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
+        self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl3], initializer = tf.random_normal_initializer(stddev=0.1))
+        #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        aggregated_w = self.aggregated_embeddings
-#        aggregated_w = self.embeddings
-        #aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
+        #aggregated_w = self.aggregated_embeddings
+        #aggregated_w = tf.nn.l2_normalize(self.aggregated_embeddings, dim=1)
+        #aggregated_w = self.embeddings
+        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
+        '''
+        aggregated_w = tf.layers.dense(aggregated_w, self.config.cl2,\
+                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
+                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
+        '''
+
         last_layer_b = tf.get_variable('last_layer_bias', shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
 
 #        direct_score_layer = tf.layers.dense(self.seq_embedding, self.config.concepts_size,\
 #                kernel_initializer=tf.random_normal_initializer(0.0,0.1))
+#        aggregated_score_layer = -euclid_dis_cartesian(self.seq_embedding, aggregated_w)
         aggregated_score_layer = tf.matmul(self.seq_embedding, tf.transpose(aggregated_w)) + last_layer_b
-
+        
         self.score_layer = aggregated_score_layer
 #        self.score_layer = direct_score_layer
         ########################
@@ -213,9 +255,12 @@ class NCRModel():
 #        self.score_layer = self.get_score(self.seq_embedding)
         label_one_hot = tf.one_hot(self.label, config.concepts_size)
 
+    
+   #     self.pred = tf.nn.softmax(self.score_layer)
+   #     self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
 
-        self.pred = tf.nn.softmax(self.score_layer)
-        self.loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(label_one_hot, self.score_layer)) 
+        self.pred = self.score_layer/tf.reduce_sum(self.score_layer,-1)
+        self.loss = -tf.reduce_mean(tf.reduce_sum(label_one_hot * self.score_layer,-1)) 
 #        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
 
         '''
@@ -283,7 +328,6 @@ class NCRModel():
                     self.label:batch['label'], 
                     self.is_training:True} 
             _ , batch_loss = self.sess.run([self.train_step, self.loss], feed_dict = batch_feed)
-
             report_loss += batch_loss
             total_loss += batch_loss
             if verbose and ct % report_len == report_len-1:

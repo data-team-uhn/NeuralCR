@@ -79,7 +79,7 @@ def experiment(model, exp_name):
     print "Exp:", exp_name
     outfile.write("Exp: " + exp_name +"\n")
     outfile.flush()
-    num_epochs = 40
+    num_epochs = 120
     for epoch in range(num_epochs):
         model.train_epoch(verbose=False)
 
@@ -146,7 +146,7 @@ def experiment(model, exp_name):
 
 def new_train(model):
     report_len = 20
-    num_epochs = 40
+    num_epochs = 120
 
     samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
@@ -158,15 +158,17 @@ def new_train(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
+    '''
     ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
     uberon_negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
 
     wiki_text = open('data/wiki_text').read()
     wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
+    '''
 
-    #model.init_training()
+    model.init_training()
     #model.init_training(set.union(wiki_negs,uberon_negs))
-    model.init_training(wiki_negs)
+    #model.init_training(wiki_negs)
     #model.init_training(uberon_negs)
 
     logfile = open('logfile.txt', 'w')
@@ -428,15 +430,20 @@ def main():
     print "Loading word model" 
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
+    #ont = Ontology('data/hp.obo',"HP:0000478")
     ont = Ontology('data/hp.obo',"HP:0000118")
+    #print len(ont.concepts)
 
     model = phrase_model.NCRModel(config, ont, word_model)
 
-    wiki_text = open('data/wiki_text').read()
-    wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
-    model.init_training(wiki_negs)
+    #wiki_text = open('data/wiki_text').read()
+    #wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
+    #model.init_training(wiki_negs)
     model.init_training()
-    experiment(model, 'wiki_aggregate_aug28')
+
+    new_train(model)
+    model.save_params(args.repdir)
+    #experiment(model, 'new_trainings')
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')
