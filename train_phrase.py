@@ -107,7 +107,7 @@ def experiment(model, exp_name):
     abstracts_testlist_file = 'test_abstracts'
 
     best_micro = -1
-    for theta in [0.7, 0.6, 0.8, 0.65, 0.75]:
+    for theta in [0.7, 0.8, 0.75, 0.85]:
         output_dir = output_dir_prefix + 'abstracts_'+ str(theta)+"/"
         create_output_dir(model, theta, abstracts+"/text/", output_dir)
         #results = eval(abstracts+"labels/", output_dir, os.listdir(abstracts+"/text/")[:8], model.ont)
@@ -158,16 +158,16 @@ def new_train(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
-    '''
+    #'''
     ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
     uberon_negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
 
     wiki_text = open('data/wiki_text').read()
     wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
-    '''
+    #'''
 
     model.init_training()
-    #model.init_training(set.union(wiki_negs,uberon_negs))
+    model.init_training(set.union(wiki_negs,uberon_negs))
     #model.init_training(wiki_negs)
     #model.init_training(uberon_negs)
 
@@ -441,9 +441,9 @@ def main():
     #model.init_training(wiki_negs)
     model.init_training()
 
-    new_train(model)
-    model.save_params(args.repdir)
-    #experiment(model, 'new_trainings')
+    #new_train(model)
+    #model.save_params(args.repdir)
+    experiment(model, 'new_trainings')
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')

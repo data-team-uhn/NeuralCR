@@ -45,7 +45,7 @@ def euclid_dis_cartesian(v, u):
     return tf.reduce_sum(v*v, 1, keep_dims=True) + tf.expand_dims(tf.reduce_sum(u*u, 1), 0) - 2 * tf.matmul(v,u, transpose_b=True) 
 
 
-class NCRModel():
+class NegModel():
     def phrase2vec(self, phrase_list, max_length):
         phrase_vec_list = []
         phrase_seq_lengths = []
@@ -162,146 +162,17 @@ class NCRModel():
 
         ### Inputs ###
         self.label = tf.placeholder(tf.int32, shape=[None])
-        self.class_weights = tf.Variable(tf.ones([config.concepts_size]), False)
 
         self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
 	self.lr = tf.Variable(config.lr, trainable=False)
         self.is_training = tf.placeholder(tf.bool)
-
-        self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ont.sparse_ancestrs, values = [1.0]*len(ont.sparse_ancestrs), dense_shape=[config.concepts_size, config.concepts_size]))
-
-        #######################
-        ## Phrase embeddings ##
-        #######################
-
-        '''
-        filters = [self.config.cl1]
-        #filters = [self.config.cl1, self.config.cl1/4, self.config.cl1/4]
-        grams = [tf.layers.conv1d(self.seq, filters[i], i+1, activation=tf.nn.relu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1), bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True) for i in range(len(filters))]
-
-        grams = [grams[i]*tf.expand_dims(tf.sequence_mask(tf.maximum(self.seq_len-i,0), config.max_sequence_length-i, dtype=tf.float32),axis=-1) for i in range(len(filters))]
-                #kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters))]
-
-        #filters2 = [self.config.cl2]
-        #grams = [tf.layers.conv1d(grams[i], filters2[i], i+1, activation=tf.nn.elu,\
-        #        kernel_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True) for i in range(len(filters2))]
-
-        grams_pooled = [tf.reduce_max(gram, [1]) for gram in grams]
-        layer1_pooled = tf.concat(grams_pooled, axis=-1)
-        layer2 = tf.layers.dense(layer1_pooled, self.config.cl2, tf.nn.relu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
-        self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
-        #self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
-
-
-
-        '''
-
-        '''
-        layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.tanh,\
-                kernel_initializer=tf.contrib.layers.xavier_initializer(),\
-                bias_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True)
-        '''
-
-
-        #########
-        layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.elu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1),\
-                bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True)
-
-        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.elu,\
-        #layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.relu,\
-                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
-                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
-
-        layer3 = tf.layers.dense(layer2, self.config.cl3, activation=tf.nn.tanh,\
-                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
-                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
-        #########
-        '''
-        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl1, tf.nn.tanh,\
-                kernel_initializer=tf.contrib.layers.xavier_initializer(),\
-                bias_initializer=tf.random_normal_initializer(0.0,0.1), use_bias=True)
-
-        layer3 = tf.layers.dense(layer2, self.config.cl2,\
-                kernel_initializer=tf.random_normal_initializer(0.0,0.1))  
-        '''
-
-        #self.seq_embedding = layer3
-        #cell = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(128) for _ in range(1)])
-        #outputs, state = tf.nn.dynamic_rnn(cell, self.seq, self.seq_len, dtype=tf.float32)
-        
-        #self.seq_embedding = state
-#        self.seq_embedding = layer3
-        self.seq_embedding = tf.nn.l2_normalize(layer3  , dim=1)
-
-        '''
-        filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
-        conv1_b = tf.get_variable('0conv1_b', initializer=tf.random_normal_initializer(stddev=0.01), shape=self.config.cl1)
-        layer1 = tf.nn.elu(tf.nn.conv1d(self.seq, filters1, 1, padding='SAME') + conv1_b)
-        '''
-
-        #self.seq_embedding = tf.nn.l2_normalize(tf.nn.relu(linear('lassst', tf.reduce_max(layer1, [1]), [self.config.cl2, self.config.cl2]))  , dim=1)
-
-        ########################
-        ## Concept embeddings ##
-        ########################
-        self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl3], initializer = tf.random_normal_initializer(stddev=0.1))
-        #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
-        self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        #aggregated_w = self.aggregated_embeddings
-        #aggregated_w = tf.nn.l2_normalize(self.aggregated_embeddings, dim=1)
-        #aggregated_w = self.embeddings
-        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
-        '''
-        aggregated_w = tf.layers.dense(aggregated_w, self.config.cl2,\
-                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
-                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
-        '''
-
-        last_layer_b = tf.get_variable('last_layer_bias', shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
-
-#        direct_score_layer = tf.layers.dense(self.seq_embedding, self.config.concepts_size,\
-#                kernel_initializer=tf.random_normal_initializer(0.0,0.1))
-#        aggregated_score_layer = -euclid_dis_cartesian(self.seq_embedding, aggregated_w)
-        aggregated_score_layer = tf.matmul(self.seq_embedding, tf.transpose(aggregated_w)) + last_layer_b
-        
-        self.score_layer = aggregated_score_layer
-#        self.score_layer = direct_score_layer
-        ########################
-        ########################
-        ########################
-
-        #self.seq_embedding = tf.layers.dropout(self.seq_embedding, rate=0.3, training=self.is_training)
-        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) 
-
-
-#        self.seq_embedding = self.apply_meanpool(self.seq, self.seq_len)
-#        self.score_layer = self.get_score(self.seq_embedding)
-        label_one_hot = tf.one_hot(self.label, config.concepts_size)
-
-    
-        self.pred = tf.nn.softmax(self.score_layer)
-        self.agg_pred, _ =  tf.nn.top_k(tf.transpose(tf.sparse_tensor_dense_matmul(tf.sparse_transpose(self.ancestry_sparse_tensor), tf.transpose(self.pred))), 2)
-
-#        self.pred = self.score_layer/tf.reduce_sum(self.score_layer,-1)
-#        self.loss = -tf.reduce_mean(tf.reduce_sum(label_one_hot * self.score_layer,-1)) 
-#        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer, tf.gather(self.class_weights, self.label)))
-
-        '''
-        optimizer = tf.train.AdamOptimizer(self.lr)
-        gradients, variables = zip(*optimizer.compute_gradients(self.loss))
-        gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
-
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            self.train_step = optimizer.apply_gradients(zip(gradients, variables))
-            #self.train_step = optimizer.apply_gradients(capped_gvs)
-        '''
         
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+       
+        cell_fw = tf.nn.rnn_cell.GRUCell(100, kernel_initializer=tf.random_normal_initializer(stddev=0.1))
+        cell_bw = tf.nn.rnn_cell.GRUCell(100, kernel_initializer=tf.random_normal_initializer(stddev=0.1))
+        bidirectional_dynamic_rnn(
         
 
 	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
