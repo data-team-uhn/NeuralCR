@@ -63,6 +63,7 @@ class NCRModel():
         candidates_info = []
         total_chars=0
         for c,chunk in enumerate(chunks_large):
+            #tokens = tokenize(chunk)
             tokens = chunk.split(" ")
             chunk_chars = 0
             for i,w in enumerate(tokens):
@@ -87,7 +88,7 @@ class NCRModel():
 
 
         for i in range(len(candidates)):
-            if matches[i][0]!='HP:0000118' and matches[i][0]!="None" and matches[i][2]>threshold:
+            if matches[i][0]!='HP:0000118' and matches[i][0]!="None" and matches[i][1]>threshold:
                 if candidates_info[i][2] not in filtered:
                     filtered[candidates_info[i][2]] = []
                 filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
@@ -211,14 +212,16 @@ class NCRModel():
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1),\
                 bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True)
 
-        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.elu,\
+        layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.relu,\
         #layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2, activation=tf.nn.relu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
                 bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
 
+        '''
         layer3 = tf.layers.dense(layer2, self.config.cl3, activation=tf.nn.tanh,\
                 kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
                 bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
+        '''
         #########
         '''
         layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl1, tf.nn.tanh,\
@@ -235,7 +238,7 @@ class NCRModel():
         
         #self.seq_embedding = state
 #        self.seq_embedding = layer3
-        self.seq_embedding = tf.nn.l2_normalize(layer3  , dim=1)
+        self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
 
         '''
         filters1 = tf.get_variable('conv1', [1, self.config.word_embed_size, self.config.cl1], tf.float32, initializer = tf.random_normal_initializer(stddev=0.1))
@@ -248,13 +251,13 @@ class NCRModel():
         ########################
         ## Concept embeddings ##
         ########################
-        self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl3], initializer = tf.random_normal_initializer(stddev=0.1))
+        self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        #aggregated_w = self.aggregated_embeddings
+        aggregated_w = self.aggregated_embeddings
         #aggregated_w = tf.nn.l2_normalize(self.aggregated_embeddings, dim=1)
-        #aggregated_w = self.embeddings
-        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
+#        aggregated_w = self.embeddings
+#        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
         '''
         aggregated_w = tf.layers.dense(aggregated_w, self.config.cl2,\
                 kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),

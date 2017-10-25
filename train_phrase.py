@@ -61,7 +61,6 @@ def create_output_dir(model, theta, data_dir, output_dir):
         text = open(data_dir+filename).read()
         predictions = model.process_text(text, theta)
  
-
         with open(output_dir+"/"+filename,"w") as fw:
             for y in predictions:
                 fw.write(y[2]+"\n")
@@ -74,12 +73,70 @@ def print_res(results):
     res_print.append(results['jaccard'])
     return "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
 
+def mimic_experiment(model):
+    import json
+    with open('data/snomed2icd.json', 'r') as fp:
+        snomed2icd = json.load(fp)
+
+    mimic_dir = "../../datasets/small_mimic/"
+    texts = dict([(f,open(mimic_dir+'/text/'+f).read()) for f in os.listdir(mimic_dir+"/text/")])
+    labels ={}
+    for key in os.listdir(mimic_dir+"/labels/"):
+        labels[key]=set([icd.strip() for icd in open(mimic_dir+"/labels/"+key).readlines() if icd.strip() in snomed2icd.values()])
+
+    threshold = 0.8
+
+    total_precision = 0
+    total_recall = 0
+    total_docs = 0
+
+    total_relevant = 0
+    total_positives = 0
+    total_true_pos = 0
+
+    for key in texts.keys():
+        ans = model.process_text(texts[key],threshold)
+        positives = set([snomed2icd[x[2]] for x in ans])
+        real=labels[key]
+        true_pos = positives&real
+
+
+        precision = 0
+        if len(positives)!=0:
+            precision = 1.0*len(true_pos)/len(positives)
+
+        recall = 0
+        if len(real)!=0:
+            recall = 1.0*len(true_pos)/len(real)
+
+        total_docs += 1
+        total_precision += precision
+        total_recall += recall
+        print key, '\t', precision, '\t', recall
+
+        total_relevant += len(real)
+        total_positives += len(positives)
+        total_true_pos += len(true_pos)
+
+    precision = total_precision/total_docs
+    recall = total_recall/total_docs
+    fmeasure = 2.0*precision*recall/(precision+recall)
+
+    if total_positives>0:
+        mprecision = 1.0*total_true_pos/total_positives
+    else:
+        mprecision = 1.0
+    mrecall = 1.0*total_true_pos/total_relevant
+    mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
+
+    ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}}
+    return ret
 def experiment(model, exp_name):
     outfile = open("report_" + exp_name + ".txt","a")
     print "Exp:", exp_name
     outfile.write("Exp: " + exp_name +"\n")
     outfile.flush()
-    num_epochs = 120
+    num_epochs = 50
     for epoch in range(num_epochs):
         model.train_epoch(verbose=False)
 
@@ -146,12 +203,14 @@ def experiment(model, exp_name):
 
 def new_train(model):
     report_len = 20
-    num_epochs = 120
+    num_epochs = 50
 
     samplesFile = open("data/labeled_data")
+    '''
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
     val_set = dict( [x for x in samples.iteritems()][:200])
     test_set = dict( [x for x in samples.iteritems()][200:])
+    '''
 
     training_samples = {}
     for hpid in model.ont.names:
@@ -167,7 +226,7 @@ def new_train(model):
     #'''
 
     model.init_training()
-    model.init_training(set.union(wiki_negs,uberon_negs))
+    #model.init_training(set.union(wiki_negs,uberon_negs))
     #model.init_training(wiki_negs)
     #model.init_training(uberon_negs)
 
@@ -192,6 +251,7 @@ def new_train(model):
             logfile.write('epoch\t'+str(epoch)+'\n')
             logfile.write('loss\t'+str(loss)+'\n')
 
+            '''
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
             logfile.write('r5\t'+str(float(hit)/total)+'\n')
             print "R@5 Accuracy on val set ::", float(hit)/total
@@ -199,6 +259,7 @@ def new_train(model):
             hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
             logfile.write('r1\t'+str(float(hit)/total)+'\n')
             print "R@1 Accuracy on val set ::", float(hit)/total
+            '''
         if False and ( ((epoch>0 and epoch % 160 == 0)) or epoch == num_epochs-1 ): 
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
@@ -431,7 +492,8 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
     #ont = Ontology('data/hp.obo',"HP:0000478")
-    ont = Ontology('data/hp.obo',"HP:0000118")
+    ont = Ontology('data/small_snomed.obo',"138875005")
+    #ont = Ontology('data/hp.obo',"HP:0000118")
     #print len(ont.concepts)
 
     model = phrase_model.NCRModel(config, ont, word_model)
@@ -441,9 +503,12 @@ def main():
     #model.init_training(wiki_negs)
     model.init_training()
 
-    #new_train(model)
+    new_train(model)
+#    model.load_params('mimic_params/')
+    model.save_params('mimic_params_agg/')
+    print mimic_experiment(model)
     #model.save_params(args.repdir)
-    experiment(model, 'new_trainings')
+#    experiment(model, 'snomed_trainings')
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')
