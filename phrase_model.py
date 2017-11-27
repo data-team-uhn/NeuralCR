@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 class Config:
-    include_negs = True
+    agg = True
     batch_size = 256
     cl1 = 1024
     cl2 = 1024
@@ -254,9 +254,11 @@ class NCRModel():
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        aggregated_w = self.aggregated_embeddings
+        if config.agg:
+            aggregated_w = self.aggregated_embeddings
+        else:
+            aggregated_w = self.embeddings
         #aggregated_w = tf.nn.l2_normalize(self.aggregated_embeddings, dim=1)
-#        aggregated_w = self.embeddings
 #        aggregated_w = tf.nn.tanh(self.aggregated_embeddings)
         '''
         aggregated_w = tf.layers.dense(aggregated_w, self.config.cl2,\

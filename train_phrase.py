@@ -70,10 +70,29 @@ def print_res(results):
     for style in ["micro", "vanila"]: 
         for acc_type in ["precision", "recall", "fmeasure"]: 
             res_print.append(results[style][acc_type])
-    res_print.append(results['jaccard'])
-    return "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
+    if 'jaccard' in results:
+        res_print.append(results['jaccard'])
+        return "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
+    else:
+        return "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
 
-def mimic_experiment(model):
+def mimic_experiment(model, exp_name):
+    outfile = open("report_" + exp_name + ".txt","a")
+    print "Exp:", exp_name
+    outfile.write("Exp: " + exp_name +"\n")
+    outfile.flush()
+
+
+    num_epochs = 50 ##
+    for epoch in range(num_epochs):
+        model.train_epoch(verbose=False)
+    print "model trained"
+
+    param_dir = "params_"+exp_name
+    if not os.path.exists(param_dir):
+        os.makedirs(param_dir)
+    model.save_params(param_dir)
+
     import json
     with open('data/snomed2icd.json', 'r') as fp:
         snomed2icd = json.load(fp)
@@ -86,51 +105,67 @@ def mimic_experiment(model):
 
     threshold = 0.8
 
-    total_precision = 0
-    total_recall = 0
-    total_docs = 0
+    def eval_omim(keys, threshold):
+        total_precision = 0
+        total_recall = 0
+        total_docs = 0
 
-    total_relevant = 0
-    total_positives = 0
-    total_true_pos = 0
+        total_relevant = 0
+        total_positives = 0
+        total_true_pos = 0
+        for key in keys: ##
+            ans = model.process_text(texts[key],threshold)
+            positives = set([snomed2icd[x[2]] for x in ans])
+            real=labels[key]
+            true_pos = positives&real
 
-    for key in texts.keys():
-        ans = model.process_text(texts[key],threshold)
-        positives = set([snomed2icd[x[2]] for x in ans])
-        real=labels[key]
-        true_pos = positives&real
 
+            precision = 0
+            if len(positives)!=0:
+                precision = 1.0*len(true_pos)/len(positives)
 
-        precision = 0
-        if len(positives)!=0:
-            precision = 1.0*len(true_pos)/len(positives)
+            recall = 0
+            if len(real)!=0:
+                recall = 1.0*len(true_pos)/len(real)
 
-        recall = 0
-        if len(real)!=0:
-            recall = 1.0*len(true_pos)/len(real)
+            total_docs += 1
+            total_precision += precision
+            total_recall += recall
+            #print key, '\t', precision, '\t', recall
 
-        total_docs += 1
-        total_precision += precision
-        total_recall += recall
-        print key, '\t', precision, '\t', recall
+            total_relevant += len(real)
+            total_positives += len(positives)
+            total_true_pos += len(true_pos)
 
-        total_relevant += len(real)
-        total_positives += len(positives)
-        total_true_pos += len(true_pos)
+        precision = total_precision/total_docs
+        recall = total_recall/total_docs
+        fmeasure = 2.0*precision*recall/(precision+recall)
 
-    precision = total_precision/total_docs
-    recall = total_recall/total_docs
-    fmeasure = 2.0*precision*recall/(precision+recall)
+        if total_positives>0:
+            mprecision = 1.0*total_true_pos/total_positives
+        else:
+            mprecision = 1.0
+        mrecall = 1.0*total_true_pos/total_relevant
+        mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
 
-    if total_positives>0:
-        mprecision = 1.0*total_true_pos/total_positives
-    else:
-        mprecision = 1.0
-    mrecall = 1.0*total_true_pos/total_relevant
-    mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
+        ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}}
+        return ret
+    
+    best_macro = -1
+    for theta in [0.7, 0.8, 0.9]:
+        results = eval_omim(labels.keys()[:20], theta)
+        #print theta
+        #print print_res(results)
+        if best_macro < results['vanila']['fmeasure']:
+            best_macro = results['vanila']['fmeasure']
+            best_theta = theta
+            #test_results_for_best_theta = eval(abstracts+"labels/", output_dir, os.listdir(abstracts+"/text/")[:8], model.ont)
+    results = eval_omim(labels.keys()[20:], best_theta)
+    print "best theta:", best_theta
+    print print_res(results)
+    outfile.write(print_res(results)+"\n")
+    return results
 
-    ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}}
-    return ret
 def experiment(model, exp_name):
     outfile = open("report_" + exp_name + ".txt","a")
     print "Exp:", exp_name
@@ -205,8 +240,8 @@ def new_train(model):
     report_len = 20
     num_epochs = 50
 
-    samplesFile = open("data/labeled_data")
     '''
+    samplesFile = open("data/labeled_data")
     samples = accuracy.prepare_phrase_samples(model.ont, samplesFile, True)
     val_set = dict( [x for x in samples.iteritems()][:200])
     test_set = dict( [x for x in samples.iteritems()][200:])
@@ -217,13 +252,13 @@ def new_train(model):
         for s in model.ont.names[hpid]:
             training_samples[s]=[hpid]
 
-    #'''
+    '''
     ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
     uberon_negs = set([name for ub in ubs for concept in ub.names for name in ub.names[concept]])
 
     wiki_text = open('data/wiki_text').read()
     wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
-    #'''
+    '''
 
     model.init_training()
     #model.init_training(set.union(wiki_negs,uberon_negs))
@@ -251,7 +286,8 @@ def new_train(model):
             logfile.write('epoch\t'+str(epoch)+'\n')
             logfile.write('loss\t'+str(loss)+'\n')
 
-            '''
+        #    '''
+        '''
             hit, total = accuracy.find_phrase_accuracy(model, samples, 5, False)
             logfile.write('r5\t'+str(float(hit)/total)+'\n')
             print "R@5 Accuracy on val set ::", float(hit)/total
@@ -259,7 +295,8 @@ def new_train(model):
             hit, total = accuracy.find_phrase_accuracy(model, samples, 1, False)
             logfile.write('r1\t'+str(float(hit)/total)+'\n')
             print "R@1 Accuracy on val set ::", float(hit)/total
-            '''
+        '''
+        #    '''
         if False and ( ((epoch>0 and epoch % 160 == 0)) or epoch == num_epochs-1 ): 
             hit, total = accuracy.find_phrase_accuracy(model, training_samples, 1, False)
             print "Accuracy on training set ::", float(hit)/total
@@ -435,10 +472,37 @@ def udp_test(model, text_file, phe_file, bk_file):
 
 def main():
     parser = argparse.ArgumentParser(description='Hello!')
-    parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
-    parser.add_argument('--udp_prefix', help="", default="chert")
+    #parser.add_argument('--repdir', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="checkpoints/")
+    parser.add_argument('--exp_name', help="The location where the checkpoints and the logfiles will be stored, default is \'checkpoints/\'", default="experiment")
+    parser.add_argument('--no_negs', help="Would not include negative samples during training", action="store_true")
+    parser.add_argument('--no_agg', action="store_true")
+    parser.add_argument('--uberon', action="store_true")
+    parser.add_argument('--snomed', action="store_true")
     args = parser.parse_args()
 
+    name = args.exp_name
+    if args.no_negs:
+        name+='_nonegs'
+    else:
+        name+='_negs'
+
+    if args.no_agg:
+        name+='_noagg'
+    else:
+        name+='_agg'
+
+    if args.snomed:
+        name+='_snomed'
+    else:
+        name+='_hpo'
+
+    if args.uberon:
+        name+='_uberon'
+
+    if args.no_negs and args.uberon:
+        print "arguments are not consistent"
+        exit()
+    print name
     config = phrase_model.Config
 #    udp_test(get_model(args.repdir, config), args.udp_prefix+".txt", args.udp_prefix+".phe", args.udp_prefix+".txt.bk")
 #    interactive_sent(get_model(args.repdir, config))
@@ -492,23 +556,46 @@ def main():
     word_model = fasttext.load_model('data/model_pmc.bin')
     print "Loading ontology" 
     #ont = Ontology('data/hp.obo',"HP:0000478")
-    ont = Ontology('data/small_snomed.obo',"138875005")
-    #ont = Ontology('data/hp.obo',"HP:0000118")
+    #ont = Ontology('data/small_snomed.obo',"138875005")
+    if args.snomed:
+        ont = Ontology('data/small_snomed.obo',"138875005")
+    else:
+        ont = Ontology('data/hp.obo',"HP:0000118")
     #print len(ont.concepts)
 
+    config.agg = not args.no_agg
+
+    print len(ont.concepts)
     model = phrase_model.NCRModel(config, ont, word_model)
+#    model.init_training()
+#    new_train(model)
 
     #wiki_text = open('data/wiki_text').read()
     #wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
     #model.init_training(wiki_negs)
-    model.init_training()
+    if args.no_negs:
+        model.init_training()
+    else:
+        wiki_text = open('data/wiki_text').read()
+        wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
+        if args.uberon:
+            ubs = [Ontology('data/uberon.obo', root) for root in ["UBERON:0000062", "UBERON:0000064"]]
+            uberon_negs = set([ubname for ub in ubs for concept in ub.names for ubname in ub.names[concept]])
+            model.init_training(wiki_negs.union(uberon_negs))
+        else:
+            model.init_training(wiki_negs)
 
-    new_train(model)
+    #new_train(model)
 #    model.load_params('mimic_params/')
-    model.save_params('mimic_params_agg/')
-    print mimic_experiment(model)
+    #model.save_params('mimic_params_agg/')
+#    print mimic_experiment(model)
     #model.save_params(args.repdir)
-#    experiment(model, 'snomed_trainings')
+
+
+    if args.snomed:
+        mimic_experiment(model, name)
+    else:
+        experiment(model, name)
     exit()
     '''
     model.load_params('params_wiki_aggregate_aug24/')
