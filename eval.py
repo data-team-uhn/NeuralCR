@@ -13,6 +13,8 @@ def get_all_ancestors(ont, hit_list):
 def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
     total_precision = 0
     total_recall = 0
+    total_oprecision = 0
+    total_orecall = 0
     total_docs = 0
 
     total_relevant = 0
@@ -43,16 +45,22 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
 
 
         precision = 0
+        oprecision = 0
         if len(positives)!=0:
             precision = 1.0*len(true_pos)/len(positives)
+            oprecision = 1.0*len(positives & extended_real)/len(positives)
 
         recall = 0
+        orecall = 0
         if len(real)!=0:
             recall = 1.0*len(true_pos)/len(real)
+            orecall = 1.0*len(real & extended_positives)/len(real)
 
         total_docs += 1
         total_precision += precision
         total_recall += recall
+        total_oprecision += oprecision
+        total_orecall += orecall
         #print filename, '\t', precision, '\t', recall
 
         total_relevant += len(real)
@@ -68,11 +76,16 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
                 if jaccard<jaccard_comp:
                     print filename
 
+
         jaccard_sum += jaccard
 
     precision = total_precision/total_docs
     recall = total_recall/total_docs
     fmeasure = 2.0*precision*recall/(precision+recall)
+
+    oprecision = total_oprecision/total_docs
+    orecall = total_orecall/total_docs
+    ofmeasure = 2.0*oprecision*orecall/(oprecision+orecall)
 
     if total_positives>0:
         mprecision = 1.0*total_true_pos/total_positives
@@ -85,7 +98,7 @@ def eval(label_dir, output_dir, file_list, ont, comp_dir=None):
 
     ##for hp,ct in sorted(false_pos_all.iteritems(), key=lambda (k,v): (-v,k)):
 ##        print hp, ont.names[hp][0], ct
-    ret = {"vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}, "jaccard":jaccard_mean}
+    ret = {"ont":{"precision":oprecision, "recall":orecall, "fmeasure":ofmeasure}, "vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}, "jaccard":jaccard_mean}
     return ret
     print "Precision:", precision
     print "Recall:", recall 
@@ -129,15 +142,16 @@ def main():
     args = parser.parse_args()
 
     ont = Ontology('data/hp.obo',"HP:0000118")
-    results = eval(args.label_dir, args.output_dir, open(args.file_list).readlines(), ont, args.comp_dir)
+    results = eval(args.label_dir, args.output_dir, open(args.file_list).readlines(), ont)#, args.comp_dir)
+    #results = eval(args.label_dir, args.output_dir, open(args.file_list).readlines(), ont, args.comp_dir)
     res_print = []
-    for style in ["micro", "vanila"]: 
+    for style in ["micro", "vanila", "ont"]: 
         for acc_type in ["precision", "recall", "fmeasure"]: 
             res_print.append(results[style][acc_type])
     res_print.append(results['jaccard'])
 
     res_print = [x*100 for x in res_print]
-    print "%.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f\\\\" % tuple(res_print)
+    print "%.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f\\\\" % tuple(res_print)
     #print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
 
     #roc(args.label_dir, args.output_dir, args.file_list, rd)
