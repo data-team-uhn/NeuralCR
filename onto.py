@@ -3,8 +3,8 @@ import numpy as np
 class Ontology():
 
     def dfs(self, c, kids, mark):
-	mark.add(c)
-	for kid in kids[c]:
+        mark.add(c)
+        for kid in kids[c]:
             if kid not in mark:
                 self.dfs(kid, kids, mark)
 
@@ -31,7 +31,7 @@ class Ontology():
             if tokens[0] == "name:":
                 names[hp_id] = [' '.join(tokens[1:])]
             if tokens[0] == "synonym:":
-                last_index = (i for i,v in enumerate(tokens) if v.endswith("\"")).next()
+                last_index = [i for i,v in enumerate(tokens) if v.endswith("\"")][0]
                 names[hp_id].append( ' '.join(tokens[1:last_index+ 1]).strip("\"") )
             if tokens[0] == "alt_id:":
                 real_id[tokens[1]] = hp_id
@@ -128,7 +128,7 @@ class Ontology():
 
 def main():
     ont = Ontology()
-    print len(ont.concepts)
+    print(len(ont.concepts))
 
 if __name__ == "__main__":
 	main()

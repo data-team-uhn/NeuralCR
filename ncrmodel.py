@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import random
 import json
-import cPickle as pickle 
+import pickle 
 import fasttext
 
 class Config:
@@ -106,7 +106,7 @@ class NCRModel():
     ##### Creates the model #####
     #############################
     def __init__(self, config, ont, word_model):
-        print "Creating the model graph" 
+        print("Creating the model graph")
         tf.reset_default_graph()
         self.ont = ont
         self.word_model = word_model
@@ -123,7 +123,7 @@ class NCRModel():
 
         self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
-	self.lr = tf.Variable(config.lr, trainable=False)
+        self.lr = tf.Variable(config.lr, trainable=False)
         self.is_training = tf.placeholder(tf.bool)
 
         self.ancestry_sparse_tensor = tf.sparse_reorder(tf.SparseTensor(indices = ont.sparse_ancestrs, values = [1.0]*len(ont.sparse_ancestrs), dense_shape=[config.concepts_size, config.concepts_size]))
@@ -170,10 +170,10 @@ class NCRModel():
 
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
-	self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        print "initializing"
-	self.sess.run(tf.global_variables_initializer())
-        print "initialized"
+        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        print("initializing")
+        self.sess.run(tf.global_variables_initializer())
+        print("initialized")
 
 
     def save_params(self, repdir='.'):
@@ -215,15 +215,15 @@ class NCRModel():
         self.training_samples['label'] = np.array(labels)
 
     def train_epoch(self, verbose=True):
-	ct = 0
-	report_loss = 0
-	total_loss = 0
+        ct = 0
+        report_loss = 0
+        total_loss = 0
         report_len = 20
         head = 0
         training_size = self.training_samples['seq'].shape[0]
-        shuffled_indecies = range(training_size)
+        shuffled_indecies = list(range(training_size))
         random.shuffle(shuffled_indecies)
-	while head < training_size:
+        while head < training_size:
             ending = min(training_size, head + self.config.batch_size)
             batch = {}
             for cat in self.training_samples:
@@ -237,7 +237,8 @@ class NCRModel():
             report_loss += batch_loss
             total_loss += batch_loss
             if verbose and ct % report_len == report_len-1:
-                print "Step =", ct+1, "\tLoss =", report_loss/report_len
+                print("Step = "+str(ct+1)+"\tLoss ="+str(report_loss/report_len))
+                #print "Step =", ct+1, "\tLoss =", report_loss/report_len
                 report_loss = 0
             ct += 1
 
