@@ -22,14 +22,14 @@ The following arguments are mandatory:
   --output      address to the directroy where the trained model will be stored
   
  The following arguments are optional:
-  --neg_corpus    address to the negative corpus
+  --neg_file    address to the negative corpus
   --flat        if this flag is passed training will ignore the taxonomy infomration provided in the ontology
   
 ```
 
 Example:
 ```
-$ python  train.py --obofile hp.obo --oboroot HP:0000118 --fasttext word_vectors.bin --neg_corpus wikipedia.txt --output trained_model/
+$ python  train.py --obofile hp.obo --oboroot HP:0000118 --fasttext word_vectors.bin --neg_file wikipedia.txt --output trained_model/
 ```
 ## Using the trained model
 
