@@ -2,9 +2,9 @@
 NCR is a concept recognizer for annotating unstructured text with concepts from an ontology. In its core, NCR uses a deep neural network trained to classify input phrases with concepts in a given ontology, and is capable of generalizing to synonyms not explicitly available. concept recognizer for annotating unstructured text with concepts from an ontology.
 
 ## Requirements
-* Python 2.7 or newer
+* Python 3.5 or newer
 * NumPy & SciPy
-* Tensorflow 1.2 or newer
+* Tensorflow 1.5 or newer
 * fasttext (https://pypi.python.org/pypi/fasttext)
 
 ## Training
@@ -16,16 +16,15 @@ The following files are needed to start the training:
 The training can be performed using `train.py`.
 ```
 The following arguments are mandatory:
-  --obofile     address to the ontology .obo file
+  --obofile     location of the ontology .obo file
   --oboroot     the concept in the ontology to be used as root (only this concept and its descendants will be used)
-  --fasttext    address to the fasttext word vector file
-  --output      address to the directroy where the trained model will be stored
+  --fasttext    location of the fasttext word vector file
+  --output      location of the directroy where the trained model will be stored
   
  The following arguments are optional:
-  --neg_file    address to the negative corpus
+  --neg_file    location the negative corpus
   --flat        if this flag is passed training will ignore the taxonomy infomration provided in the ontology
-  
-```
+  ```
 
 Example:
 ```
