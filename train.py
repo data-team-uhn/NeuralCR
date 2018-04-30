@@ -22,9 +22,9 @@ def main():
     parser.add_argument('--oboroot', help="the concept in the ontology to be used as root (only this concept and its descendants will be used)")
     parser.add_argument('--fasttext', help="address to the fasttext word vector file")
     parser.add_argument('--neg_file', help="address to the negative corpus", default="")
-    parser.add_argument('--output', help="address to the directroy where the trained model will be stored", default="experiment")
+    parser.add_argument('--output', help="address to the directroy where the trained model will be stored")
 
-    parser.add_argument('--no_agg', action="store_true")
+    parser.add_argument('--flat', action="store_true")
     parser.add_argument('--cl1', type=int, help="cl1", default=1024)
     parser.add_argument('--cl2', type=int, help="cl2", default=1024)
     parser.add_argument('--lr', type=float, help="lr", default=1/512)

@@ -149,7 +149,7 @@ class NCRModel():
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        if config.no_agg:
+        if config.flat:
             aggregated_w = self.embeddings
         else:
             aggregated_w = self.aggregated_embeddings
