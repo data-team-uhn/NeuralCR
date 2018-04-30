@@ -17,6 +17,7 @@ class Config:
 
     word_embed_size = 100
 
+
 def is_number(s):
     try:
         float(s)
@@ -121,7 +122,7 @@ class NCRModel():
         self.label = tf.placeholder(tf.int32, shape=[None])
         self.class_weights = tf.Variable(tf.ones([config.concepts_size]), False)
 
-        self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, config.word_embed_size])
+        self.seq = tf.placeholder(tf.float32, shape=[None, config.max_sequence_length, word_model.dim])
         self.seq_len = tf.placeholder(tf.int32, shape=[None])
         self.lr = tf.Variable(config.lr, trainable=False)
         self.is_training = tf.placeholder(tf.bool)
@@ -148,10 +149,10 @@ class NCRModel():
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
-        if config.agg:
-            aggregated_w = self.aggregated_embeddings
-        else:
+        if config.no_agg:
             aggregated_w = self.embeddings
+        else:
+            aggregated_w = self.aggregated_embeddings
 
         last_layer_b = tf.get_variable('last_layer_bias', shape = [self.config.concepts_size], initializer = tf.random_normal_initializer(stddev=0.001))
 
@@ -185,8 +186,13 @@ class NCRModel():
     @classmethod
     def loadfromfile(cls, repdir, word_model_file):
         ont = pickle.load(open(repdir+'/ont.pickle',"rb" )) 
-        config = Config
-        config.__dict__ = json.load(open(repdir+'/config.json', 'r'))
+
+        class Config(object):
+            def __init__(self, d):
+                self.__dict__ = d
+        config = Config(json.load(open(repdir+'/config.json', 'r')))
+        #config = Config
+        #config.__dict__ = json.load(open(repdir+'/config.json', 'r'))
 
         word_model = fasttext.load_model(word_model_file)
 
@@ -257,7 +263,7 @@ class NCRModel():
         head = 0
 
         was_string = False
-        if isinstance(querry, basestring):
+        if isinstance(querry, str):
             was_string = True
             querry = [querry]
 

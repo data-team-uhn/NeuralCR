@@ -6,6 +6,7 @@ from onto import Ontology
 import json
 import fasttext
 import pickle 
+import tensorflow as tf
 
 def create_negatives(text, num):
     neg_tokens = ncrmodel.tokenize(text)
@@ -22,16 +23,20 @@ def main():
     parser.add_argument('--fasttext', help="address to the fasttext word vector file")
     parser.add_argument('--neg_file', help="address to the negative corpus", default="")
     parser.add_argument('--output', help="address to the directroy where the trained model will be stored", default="experiment")
+
     parser.add_argument('--no_agg', action="store_true")
+    parser.add_argument('--cl1', type=int, help="cl1", default=1024)
+    parser.add_argument('--cl2', type=int, help="cl2", default=1024)
+    parser.add_argument('--lr', type=float, help="lr", default=1/512)
+    parser.add_argument('--batch_size', type=int, help="batch_size", default=256)
+    parser.add_argument('--max_sequence_length', type=int, help="max_sequence_length", default=50)
+    parser.add_argument('--epochs', type=int, help="epochs", default=50)
     args = parser.parse_args()
 
     word_model = fasttext.load_model(args.fasttext)
     ont = Ontology(args.obofile,args.oboroot)
 
-    config = ncrmodel.Config
-    config.agg = not args.no_agg
-
-    model = ncrmodel.NCRModel(config, ont, word_model)
+    model = ncrmodel.NCRModel(args, ont, word_model)
     if args.neg_file == "":
         model.init_training()
     else:
@@ -41,8 +46,7 @@ def main():
         model.init_training(wiki_negs)
 
 
-    num_epochs = 50
-    for epoch in range(num_epochs):
+    for epoch in range(args.epochs):
         print("Epoch :: "+str(epoch))
         model.train_epoch(verbose=True)
 
@@ -54,7 +58,7 @@ def main():
     pickle.dump(ont, open(param_dir+'/ont.pickle',"wb" )) 
 
     with open(param_dir+'/config.json', 'w') as fp:
-        json.dump(config.__dict__,fp)
+        json.dump(vars(args),fp)
 
 if __name__ == "__main__":
     main()
