@@ -107,7 +107,7 @@ class NCRModel():
     ##### Creates the model #####
     #############################
     def __init__(self, config, ont, word_model):
-        print("Creating the model graph")
+        #print("Creating the model graph")
         tf.reset_default_graph()
         self.ont = ont
         self.word_model = word_model
@@ -172,9 +172,9 @@ class NCRModel():
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
         self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        print("initializing")
+        #print("initializing")
         self.sess.run(tf.global_variables_initializer())
-        print("initialized")
+        #print("initialized")
 
 
     def save_params(self, repdir='.'):

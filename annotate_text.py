@@ -1,6 +1,7 @@
 import argparse
 import ncrmodel 
 import os
+import sys
 
 def main():
     parser = argparse.ArgumentParser(description='Hello!')
@@ -13,17 +14,19 @@ def main():
     
     print('Loading model...')
     model = ncrmodel.NCRModel.loadfromfile(args.params, args.fasttext)
-    print('Model loaded')
 
     if not os.path.exists(args.output):
         os.makedirs(args.output)
 
-    for filename in os.listdir(args.input):    
-        print(filename)
+    file_list = os.listdir(args.input)
+    for i,filename in enumerate(file_list):    
+        sys.stdout.write("\rProgress:: %d%%" % (100*i//len(file_list)))
+        sys.stdout.flush()
         results = model.annotate_text(open(args.input+'/'+filename).read(), threshold = float(args.threshold))
         fp = open(args.output+'/'+filename,'w')
         for res in results:
             fp.write('\t'.join(map(str,res))+'\n')
+    sys.stdout.write("\n")
 
 if __name__ == "__main__":
     main()
