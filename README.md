@@ -61,12 +61,33 @@ The following arguments are mandatory:
   --fasttext    address to the fasttext word vector file
   --input       address to the directory where the input text files are located
   --output      adresss to the directory where the output files will be stored
-  --threshold   the score threshold for concept recognition [0.5]
+  
+The following arguments are optional:
+  --threshold   the score threshold for concept recognition [0.8]
 ```
 
 Example:
 ```
-$ python annotate_text.py --params trained_model. --fasttext word_vectors.bin --input documents/ --output annotations/
+$ python annotate_text.py --params trained_model --fasttext word_vectors.bin --input documents/ --output annotations/
 ```
+
+### Interactive session
+Concept recognition can be done in an interactive session through `interactive.py`. After the model is loaded, concept recognition will be performed on the standard input.
+```
+The following arguments are mandatory:
+  --params      address to the directroy where the trained model parameters are stored
+  --fasttext    address to the fasttext word vector file
+  
+The following arguments are optional:
+  --threshold   the score threshold for concept recognition [0.8]
+```
+
+Example:
+```
+$ python interactive.py --params trained_model --fasttext word_vectors.bin 
+The patient was diagnosed with kidney cancer.
+44	57	HP:0009726	Renal neoplasm	0.96700555
+```
+
 
 
