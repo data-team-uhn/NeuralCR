@@ -57,11 +57,11 @@ Where the first argument is the input text string and the second argument is the
 Concept recognition can be also performed using `annotate_text.py`. 
 ```
 The following arguments are mandatory:
-  --params      address to the directroy where the trained model is stored
+  --params      address to the directroy where the trained model parameters are stored
   --fasttext    address to the fasttext word vector file
   --input       address to the directory where the input text files are located
   --output      adresss to the directory where the output files will be stored
-  --threshold   the concept calling score threshold for concept recognition [0.5]
+  --threshold   the score threshold for concept recognition [0.5]
 ```
 
 Example:
