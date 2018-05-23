@@ -46,8 +46,9 @@ class Ontology():
                 hp_id=tokens[1]
 
             if tokens[0]=="is_a:":
-                kids[tokens[1]].append(hp_id)
-                parents[hp_id].append(tokens[1])
+                if tokens[1] in kids:
+                    kids[tokens[1]].append(hp_id)
+                    parents[hp_id].append(tokens[1])
         mark=set()
         self.dfs(topid, kids, mark)
         names = {c:names[c] for c in mark}
@@ -95,6 +96,7 @@ class Ontology():
         self.names, self.kids, self.parents, self.real_id, self.def_text = self.read_oboFile(open(obo_address), root_id)
         self.concepts = [c for c in self.names.keys()]
         self.concept2id = dict(zip(self.concepts,range(len(self.concepts))))
+        self.root_id = root_id
 
         self.name2conceptid = {}
         for c in self.concepts:

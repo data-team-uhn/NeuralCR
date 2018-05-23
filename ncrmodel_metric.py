@@ -4,7 +4,6 @@ import random
 import json
 import pickle 
 import fasttext
-import re
 
 def is_number(s):
     try:
@@ -14,11 +13,10 @@ def is_number(s):
         return False
 
 def tokenize(phrase):
-    pattern = re.compile('[\W_]')
-    tmp = pattern.sub(' ', phrase).lower().strip().split()
+    tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').replace('.', ' . ').strip().split()
     return ["INT" if w.isdigit() else ("FLOAT" if is_number(w) else w) for w in tmp]
-    #tmp = phrase.lower().replace(',',' , ').replace('-',' ').replace(';', ' ; ').replace('/', ' / ').replace('(', ' ( ').replace(')', ' ) ').replace('.', ' . ').strip().split()
 
+    return tf.sparse_tensor_dense_matmul(x,w) #+ b
 
 class NCRModel():
     def phrase2vec(self, phrase_list, max_length):
@@ -30,15 +28,14 @@ class NCRModel():
             phrase_seq_lengths.append(len(tokens))
         return np.array(phrase_vec_list), np.array(phrase_seq_lengths)
 
-    def annotate_text(self, text, threshold=0.8):
+    def annotate_text(self, text, threshold=0.5):
 #        chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").replace("-","|").split("|")
-#        chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
-        #chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
-        chunks_large = re.split('[.;,]',text)
+        chunks_large = text.replace("\r"," ").replace("\n"," ").replace("\t", " ").replace(",","|").replace(";","|").replace(".","|").split("|")
         candidates = []
         candidates_info = []
         total_chars=0
         for c,chunk in enumerate(chunks_large):
+            #tokens = tokenize(chunk)
             tokens = chunk.split(" ")
             chunk_chars = 0
             for i,w in enumerate(tokens):
@@ -51,8 +48,8 @@ class NCRModel():
                     else:
                         phrase = tokens[i+r]
                     ###########
-                    #if tokens[i+r]=='and':
-                    #    break
+                    if tokens[i+r]=='and':
+                        break
                     #cand_phrase = phrase.strip(',/;-.').strip()
                     cand_phrase = phrase
                     if len(cand_phrase) > 0:
@@ -65,7 +62,7 @@ class NCRModel():
         filtered = {}
 
         for i in range(len(candidates)): #TODO
-            if matches[i][0]!=self.ont.root_id and matches[i][0]!="None" and matches[i][1]>threshold:
+            if matches[i][0]!='HP:0000118' and matches[i][0]!="None" and matches[i][1]>threshold:
                 if candidates_info[i][2] not in filtered:
                     filtered[candidates_info[i][2]] = []
                 filtered[candidates_info[i][2]].append((candidates_info[i][0], candidates_info[i][1], matches[i][0], matches[i][1]))
@@ -76,9 +73,7 @@ class NCRModel():
             for x in filtered[c]:
                 bad = False
                 for y in filtered[c]:
-                    ## TODO
-                    if x[0]<=y[0] and x[1]>=y[1] and x[2]==y[2] and (x is not y) and x[3]<y[3]: #(m2[1]-m2[0]<best_smaller[1]-best_smaller[0]):
-                    #if x[0]<=y[0] and x[1]>=y[1] and x[2]==y[2] and (x is not y): #(m2[1]-m2[0]<best_smaller[1]-best_smaller[0]):
+                    if x[0]<=y[0] and x[1]>=y[1] and x[2]==y[2] and (x is not y): #(m2[1]-m2[0]<best_smaller[1]-best_smaller[0]):
                         bad=True
                         break
                 if not bad:
@@ -97,7 +92,9 @@ class NCRModel():
 
         return final
 
-
+    def np2v(self, phrase_list, max_length):
+        vectorized, lens = (self.phrase2vec(phrase_list, max_length))
+        return normalized(np.sum(vectorized,1),1)
     #############################
     ##### Creates the model #####
     #############################
@@ -107,8 +104,12 @@ class NCRModel():
         self.ont = ont
         self.word_model = word_model
 
+        ######
+        self.raw_data = ([(x,c) for c in self.ont.names for x in self.ont.names[c]])
+        self.anchors, self.anchors_len = self.phrase2vec([x[0] for x in self.raw_data], config.max_sequence_length)
+
         ##
-        config.concepts_size = len(self.ont.concepts) +1
+        #config.concepts_size = len(self.ont.concepts) +1
         ##
 
         self.config = config
@@ -128,7 +129,7 @@ class NCRModel():
         ## Phrase embeddings ##
         #######################
 
-        l2scale = 1.0
+        '''
         layer1 = tf.layers.conv1d(self.seq, self.config.cl1, 1, activation=tf.nn.elu,\
                 kernel_initializer=tf.random_normal_initializer(0.0,0.1),\
                 bias_initializer=tf.random_normal_initializer(stddev=0.01), use_bias=True)
@@ -138,22 +139,14 @@ class NCRModel():
                 kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
                 bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
 
+        #self.seq_embedding = tf.nn.l2_normalize(layer2  , dim=1)
         '''
-        layer2 = tf.layers.dense(layer2, self.config.cl2, activation=tf.nn.relu,\
-        #layer2 = tf.layers.dense(tf.reduce_max(layer1, [1]), self.config.cl2,\
-                kernel_initializer=tf.random_normal_initializer(0.0,stddev=0.1),
-                kernel_regularizer=tf.contrib.layers.l2_regularizer(l2scale,scope=None),
-                bias_initializer=tf.random_normal_initializer(0.0,stddev=0.01), use_bias=True)
-
-        layer2 = tf.reduce_max(layer1, [1])
-        '''
-
-        self.seq_embedding = tf.nn.l2_normalize(layer2, axis=1)
-        #self.seq_embedding = layer2 
+        self.seq_embedding = tf.nn.l2_normalize(tf.reduce_sum(self.seq, axis=1), axis=1)
 
         ########################
         ## Concept embeddings ##
         ########################
+        '''
         self.embeddings = tf.get_variable("embeddings", shape = [self.config.concepts_size, self.config.cl2], initializer = tf.random_normal_initializer(stddev=0.1))
         #self.embeddings = tf.nn.l2_normalize(self.embeddings, dim=1)
         self.aggregated_embeddings = tf.sparse_tensor_dense_matmul(self.ancestry_sparse_tensor, self.embeddings) 
@@ -171,10 +164,7 @@ class NCRModel():
         ########################
 
         label_one_hot = tf.one_hot(self.label, config.concepts_size)
-
-        #reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        #reg_constant = 0.0002
-        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) # + reg_constant*tf.reduce_sum(reg_losses)
+        self.loss = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.label, self.score_layer)) 
         #self.loss = tf.reduce_mean(tf.losses.sigmoid_cross_entropy(tf.one_hot(self.label, config.concepts_size), self.score_layer)) 
         #self.loss =  -tf.reduce_mean(tf.reduce_sum(label_one_hot*tf.log(0.001+ tf.sigmoid(self.score_layer)) + (1-label_one_hot)*tf.log(0.001+1-tf.sigmoid(self.score_layer))/(config.concepts_size-1), axis=-1))
 
@@ -184,6 +174,7 @@ class NCRModel():
         self.agg_pred, _ =  tf.nn.top_k(tf.transpose(tf.sparse_tensor_dense_matmul(tf.sparse_transpose(self.ancestry_sparse_tensor), tf.transpose(self.pred))), 2)
 
         self.train_step = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+        '''
 
         self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         #print("initializing")
@@ -197,8 +188,17 @@ class NCRModel():
     def load_params(self, repdir='.'):
         tf.train.Saver().restore(self.sess, (repdir+'/params.ckpt').replace('//','/'))
 
+    def encode(self, phrases):
+        seq, seq_len = self.phrase2vec(phrases, self.config.max_sequence_length)
+        querry_dict = {self.seq : seq, self.seq_len: seq_len, self.is_training:False}
+        return self.sess.run(self.seq_embedding, feed_dict = querry_dict)
+
+    def get_anchor_embeddings(self):
+        querry_dict = {self.seq : self.anchors, self.seq_len: self.anchors_len, self.is_training:False}
+        return self.sess.run(self.seq_embedding, feed_dict = querry_dict)
+
     @classmethod
-    def loadfromfile(cls, repdir, word_model_file):
+    def loadfromfile(cls, repdir, word_model_file, word_model=None):
         ont = pickle.load(open(repdir+'/ont.pickle',"rb" )) 
 
         class Config(object):
@@ -208,12 +208,17 @@ class NCRModel():
         #config = Config
         #config.__dict__ = json.load(open(repdir+'/config.json', 'r'))
 
-        word_model = fasttext.load_model(word_model_file)
+        if word_model == None:
+            word_model = fasttext.load_model(word_model_file)
 
         model = cls(config, ont, word_model)
-        model.load_params(repdir)
+        #model.load_params(repdir)
         return model
 
+    def get_match2(self, querry, count=1):
+        scores = self.get_probs(querry)
+        idxs_list = np.argsort(scores,1)[:,-count:][:,::-1]
+        return [[self.raw_data[idx] for idx in idxs] for idxs in idxs_list]
 
     def init_training(self, neg_samples=None):
         raw_samples = []
@@ -265,12 +270,11 @@ class NCRModel():
         return total_loss/ct
 
     def get_probs(self, querry):
-        seq, seq_len = self.phrase2vec(querry, self.config.max_sequence_length)
-
-        querry_dict = {self.seq : seq, self.seq_len: seq_len, self.is_training:False}
-#        res_querry = self.sess.run(self.score_layer, feed_dict = querry_dict)
-        res_querry = self.sess.run([self.pred, self.agg_pred], feed_dict = querry_dict)
-        return res_querry
+        anchor_e = self.get_anchor_embeddings()
+        querry_e = self.encode(querry)
+        logits = np.matmul(querry_e, anchor_e.T)
+        probs = logits/np.sum(logits,1, keepdims=True)
+        return probs
 
     def get_match(self, querry, count=1):
         batch_size = 512

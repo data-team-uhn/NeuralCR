@@ -7,6 +7,7 @@ import json
 import fasttext
 import pickle 
 import tensorflow as tf
+import accuracy
 
 def create_negatives(text, num):
     neg_tokens = ncrmodel.tokenize(text)
@@ -23,6 +24,8 @@ def main():
     parser.add_argument('--fasttext', help="address to the fasttext word vector file")
     parser.add_argument('--neg_file', help="address to the negative corpus", default="")
     parser.add_argument('--output', help="address to the directroy where the trained model will be stored")
+
+    parser.add_argument('--phrase_val', help="address to the file containing labeled phrases for validation")
 
     parser.add_argument('--flat', action="store_true")
     parser.add_argument('--cl1', type=int, help="cl1", default=1024)
@@ -45,10 +48,25 @@ def main():
         wiki_negs = set(create_negatives(wiki_text[:10000000], 10000))
         model.init_training(wiki_negs)
 
+    if args.phrase_val != None: 
+        samples = accuracy.prepare_phrase_samples(model.ont, args.phrase_val, True)
 
     for epoch in range(args.epochs):
         print("Epoch :: "+str(epoch))
         model.train_epoch(verbose=True)
+        if args.phrase_val != None and epoch%5==0 and epoch>0: 
+            res = model.get_match(list(samples.keys()), 1)
+            missed = [x for i,x in enumerate(samples) if samples[x] not in [r[0] for r in res[i]]]
+            print("R@1: "+ str((len(samples)-len(missed))/len(samples)))
+
+            res = model.get_match(list(samples.keys()), 5)
+            missed = [x for i,x in enumerate(samples) if samples[x] not in [r[0] for r in res[i]]]
+            print("R@5: "+ str((len(samples)-len(missed))/len(samples)))
+        if epoch%5==0 and epoch>0: 
+            #for x in model.get_match('retina cancer', 5):
+            for x in model.get_match('blood examination', 5):
+                print(x[0], (ont.names[x[0]] if x[0]!='None' else x[0]), x[1])
+#            print(model.get_match('retina cancer', 5))
 
     param_dir = args.output
     if not os.path.exists(param_dir):

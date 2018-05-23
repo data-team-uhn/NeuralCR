@@ -32,6 +32,7 @@ def main():
     args = parser.parse_args()
     
     model = ncrmodel.NCRModel.loadfromfile(args.params, args.fasttext)
+
     samples = prepare_phrase_samples(model.ont, args.input, True)
 
     res = model.get_match(list(samples.keys()), args.topk)

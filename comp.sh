@@ -1,0 +1,1 @@
+for f in `ls ../../datasets/littleomim/labels/`; do echo $f; python comp.py ../../datasets/littleomim/labels/ $1/littleomim/outputs/ ../../littleomim_biolark/ $f --obofile ../data/hp.obo --oboroot HP:0000118; done
