@@ -16,7 +16,8 @@ def main():
         if line.startswith("->"):
             results = model.get_match(line[2:], 5)
             for r in results:
-                print(r[0], model.ont.names[r[0]][0], r[1])
+                
+                print(r[0], (model.ont.names[r[0]][0] if r[0]!='None' else r[0]), r[1])
             print("")
 
         else:
