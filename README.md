@@ -25,7 +25,7 @@ $ pip3 install fastText/
 
 Install NCR by simply cloning this repository:
 ```
-$ https://github.com/ccmbioinfo/NeuralCR.git
+$ git clone https://github.com/ccmbioinfo/NeuralCR.git
 ```
 
 To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HPO](https://hpo.jax.org/app/) (release of 2019-06-03):
