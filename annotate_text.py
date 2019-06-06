@@ -6,6 +6,7 @@ import json
 import csv
 
 
+#@profile
 def annotate_stream(model, threshold, input_iterator, output_writer):
     for i,(key,text) in enumerate(input_iterator):
         sys.stdout.write("\rProgress:: %.2f%%" % (100.0*i//len(input_iterator)))
@@ -19,6 +20,8 @@ class DirOutputStream:
     def __init__(self, output_dir):
         self.output_dir = output_dir
     def write(self, key, ants):
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
         with open(self.output_dir+'/'+key,'w') as fp:
             for ant in ants:
                 fp.write('\t'.join(map(str,ant))+'\n')
@@ -113,11 +116,11 @@ def main():
     parser.add_argument('--params', help="address to the directroy where the trained model parameters are stored")
     parser.add_argument('--input', help="address to the directory where the input text files are located ")
     parser.add_argument('--output', help="adresss to the directory where the output files will be stored")
-    parser.add_argument('--threshold', help="the score threshold for concept recognition", default=0.8)
+    parser.add_argument('--threshold', type=float, help="the score threshold for concept recognition", default=0.8)
     parser.add_argument('--max_rows', type=int, help="", default=-1)
     args = parser.parse_args()
 
-    model = ncrmodel.NCRModel.loadfromfile(args.params, args.fasttext)
+    model = ncrmodel.NCR.loadfromfile(args.params, args.fasttext)
     print ("model loaded")
 
     if args.output.endswith('.csv'):

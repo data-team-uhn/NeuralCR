@@ -1,179 +1,217 @@
 import argparse
+import random
 from onto import Ontology
+import numpy as np
 import os
+import json
+from scipy import stats
 
 def normalize(ont, hpid_filename, column=0):
-    concepts = [c.strip().split()[column].replace("_",":") for c in open(hpid_filename).readlines()]
+    concepts = [c.strip().split()[column].replace("_",":") for c in open(hpid_filename).readlines() if c.strip()!=""]
     filtered = [ont.real_id[c] for c in concepts if c in ont.real_id] 
     # and x.replace("_",":").strip()!="HP:0003220" and x.replace("_",":").strip()!="HP:0001263"and x.replace("_",":").strip()!="HP:0001999"]
     #raw = [ont.real_id[x.replace("_",":").strip()] for x in open(hpid_filename).readlines()]
     return set([c for c in filtered if c in ont.concepts])
 
 def get_all_ancestors(ont, hit_list):
-    return set([ont.concepts[x] for hit in hit_list for x in ont.ancestrs[ont.concept2id[hit]]])
+    return set([ont.concepts[x] for hit in hit_list for x in ont.ancestor_weight[ont.concept2id[hit]]])
 
-def eval(label_dir, output_dir, file_list, ont, column=0, comp_dir=None):
-    total_precision = 0
-    total_recall = 0
-    total_oprecision = 0
-    total_orecall = 0
-    total_docs = 0
+def get_tp_fp(positives, real_positives):
+    tp = len(positives & real_positives)
+    fp = len(positives) - tp
+    return tp, fp
 
-    total_relevant = 0
-    total_positives = 0
-    total_true_pos = 0
+def get_fmeasure(precision, recall):
+    return 2.0*precision*recall/(precision+recall) if (precision+recall)!=0 else 0.0
 
-    jaccard_sum = 0
-    false_pos_all = {}
+def get_micro_stats(matrix):
+    tp = matrix['tp']
+    fp = matrix['fp']
+    rp = matrix['rp']
+    if np.sum(tp)+np.sum(fp) == 0:
+        precision = 1.0
+    else:
+        precision = np.sum(tp)/(np.sum(tp)+np.sum(fp))
+    if np.sum(rp) == 0:
+        recall = 1.0
+    else:
+        recall = np.sum(tp)/np.sum(rp)
+    return {"precision":precision, "recall":recall,
+            "fmeasure":get_fmeasure(precision, recall)}
+
+def get_macro_stats(matrix):
+    tp = matrix['tp']
+    fp = matrix['fp']
+    rp = matrix['rp']
+    precision = np.mean(np.where(tp+fp>0, tp/(tp+fp), 1.0))
+    #precision = np.mean(np.where(tp+fp>0, tp/(tp+fp), 0.0))
+    recall = np.mean(np.where(rp>0, tp/rp, 1.0))
+    return {"precision":precision, "recall":recall,
+            "fmeasure":get_fmeasure(precision, recall)}
+    
+def get_extended_stats(matrix):
+    tp = matrix['tp']
+    fp = matrix['fp']
+    rp = matrix['rp']
+    tp_precision = matrix['tp_ont_precision']
+    tp_recall = matrix['tp_ont_recall']
+
+    precision = np.mean(np.where(tp+fp>0, tp_precision/(tp+fp), 1.0))
+    recall = np.mean(np.where(rp>0, tp_recall/rp, 1.0))
+    return {"precision":precision, "recall":recall,
+            "fmeasure":get_fmeasure(precision, recall)}
+
+
+def print_results(results, is_mimic=False):
+    res_print = []
+    styles = ["micro", "macro"]
+    if not is_mimic:
+        styles.append("ont")
+    for style in styles: 
+        for acc_type in ["precision", "recall", "fmeasure"]: 
+            res_print.append(results[style][acc_type])
+    if not is_mimic:
+        res_print.append(results['jaccard'])
+
+    res_print = [x*100 for x in res_print]
+    if is_mimic:
+        print("%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f" % tuple(res_print))
+    else:
+        print("%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f" % tuple(res_print))
+
+def get_confusion_matrix_mimic(label_dir, output_dir, file_list, ont, snomed2icd, column=0):
+    true_positives = []
+    false_positives = []
+    real_positives = []
+    total_calls = 0
 
     for filename in file_list:
-    #for filename in open(file_list).readlines():
         filename = filename.strip()
-        real = normalize(ont, label_dir+"/"+filename)
-        #real = normalize(ont, label_dict[filename])
 
-        extended_real = get_all_ancestors(ont, real)
+        file_real_positives = set([x.strip() for x in open(label_dir+"/"+filename).readlines() if x.strip() in snomed2icd.values()])
 
-        assert comp_dir == None ## needs to be checked
-        if comp_dir!=None:
-            comp_positives = normalize(ont, comp_dir+"/"+filename)
-            extended_comp_positives = get_all_ancestors(ont, comp_positives)
-        positives = normalize(ont, output_dir+"/"+filename, column)
-        #positives = normalize(ont, output_dict[filename])
+        file_positives = normalize(ont, output_dir+"/"+filename, column)
+        file_positives = set([snomed2icd[x] for x in file_positives if x in snomed2icd])
 
-        extended_positives = get_all_ancestors(ont, positives)
-        true_pos = [x for x in positives if x in real]
-        false_pos = [x for x in positives if x not in real]
-  ##      if "HP:0001263" in false_pos:
-   ##         print filename
-        for x in false_pos:
-            if x not in false_pos_all:
-                false_pos_all[x] = 0
-            false_pos_all[x] += 1
+        total_calls += len(file_positives)
 
+        tp, fp = get_tp_fp(file_positives, file_real_positives)
+        true_positives.append(tp)
+        false_positives.append(fp)
+        real_positives.append(len(file_real_positives))
 
-        precision = 0
-        oprecision = 0
-        if len(positives)!=0:
-            precision = 1.0*len(true_pos)/len(positives)
-            oprecision = 1.0*len(positives & extended_real)/len(positives)
+    tp = np.array(true_positives)
+    fp = np.array(false_positives)
+    rp = np.array(real_positives)
 
-        recall = 0
-        orecall = 0
-        if len(real)!=0:
-            recall = 1.0*len(true_pos)/len(real)
-            orecall = 1.0*len(real & extended_positives)/len(real)
+    matrix = {
+            'tp':np.array(true_positives),
+            'fp':np.array(false_positives),
+            'rp':np.array(real_positives),
+            'total_calls': total_calls
+            }
+    return matrix
 
-        total_docs += 1
-        total_precision += precision
-        total_recall += recall
-        total_oprecision += oprecision
-        total_orecall += orecall
-        #print filename, '\t', precision, '\t', recall
+def get_confusion_matrix(label_dir, output_dir, file_list, ont, column=0):
+    true_positives = []
+    false_positives = []
+    real_positives = []
 
-        total_relevant += len(real)
-        total_positives += len(positives)
-        total_true_pos += len(true_pos)
-        
-        if len(extended_real | extended_positives) == 0:
-            jaccard = 1.0
+    tp_ont_recall_list = []
+    tp_ont_precision_list = []
+
+    jaccard = []
+
+    total_calls = 0
+
+    for filename in file_list:
+        filename = filename.strip()
+
+        file_real_positives = normalize(ont, label_dir+"/"+filename)
+        file_real_positives_ont = get_all_ancestors(ont, file_real_positives)
+
+        file_positives = normalize(ont, output_dir+"/"+filename, column)
+        total_calls += len(file_positives)
+        file_positives_ont = get_all_ancestors(ont, file_positives)
+
+        tp, fp = get_tp_fp(file_positives, file_real_positives)
+        true_positives.append(tp)
+        false_positives.append(fp)
+        real_positives.append(len(file_real_positives))
+
+        tp_ont_recall, _ = get_tp_fp(file_positives_ont, file_real_positives)
+        tp_ont_precision, _ = get_tp_fp(file_positives, file_real_positives_ont)
+        tp_ont_recall_list.append(tp_ont_recall)
+        tp_ont_precision_list.append(tp_ont_precision)
+
+        if len(file_real_positives)==0:
+            jaccard.append(1.0)
         else:
-            jaccard = 1.0 * len(extended_real & extended_positives) / len(extended_real | extended_positives)
-            if comp_dir!=None and len(extended_real | extended_comp_positives)!=0:
-                jaccard_comp = 1.0 * len(extended_real & extended_comp_positives) / len(extended_real | extended_comp_positives)
-                if jaccard<jaccard_comp:
-                    print(filename)
+            jaccard.append(
+                    len(file_real_positives_ont & file_positives_ont)/
+                    len(file_real_positives_ont | file_positives_ont))
 
+    tp = np.array(true_positives)
+    fp = np.array(false_positives)
+    rp = np.array(real_positives)
 
-        jaccard_sum += jaccard
+    matrix = {
+            'tp':np.array(true_positives),
+            'fp':np.array(false_positives),
+            'rp':np.array(real_positives),
+            'tp_ont_precision':np.array(tp_ont_precision_list),
+            'tp_ont_recall':np.array(tp_ont_recall_list),
+            'jaccard': np.mean(jaccard),
+            'total_calls': total_calls
+            }
+    return matrix
 
-    precision = total_precision/total_docs
-    recall = total_recall/total_docs
-    fmeasure = 2.0*precision*recall/(precision+recall)
-
-    oprecision = total_oprecision/total_docs
-    orecall = total_orecall/total_docs
-    ofmeasure = 2.0*oprecision*orecall/(oprecision+orecall)
-
-    if total_positives>0:
-        mprecision = 1.0*total_true_pos/total_positives
-    else:
-        mprecision = 1.0
-    mrecall = 1.0*total_true_pos/total_relevant
-    mfmeasure = 2.0*mprecision*mrecall/(mprecision+mrecall)
-
-    jaccard_mean = jaccard_sum/total_docs
-
-    ##for hp,ct in sorted(false_pos_all.iteritems(), key=lambda (k,v): (-v,k)):
-##        print hp, ont.names[hp][0], ct
-    ret = {"ont":{"precision":oprecision, "recall":orecall, "fmeasure":ofmeasure}, "vanila":{"precision":precision, "recall":recall, "fmeasure":fmeasure}, "micro":{"precision":mprecision, "recall":mrecall, "fmeasure":mfmeasure}, "jaccard":jaccard_mean}
+def eval(label_dir, output_dir, file_list, ont, column=0):
+    matrix = get_confusion_matrix(label_dir, output_dir, file_list, ont, column)
+    ret = { "ont": get_extended_stats(matrix),
+            "macro": get_macro_stats(matrix),
+            "micro": get_micro_stats(matrix),
+            "jaccard":matrix['jaccard']}
     return ret
-    '''
-    print "Precision:", precision
-    print "Recall:", recall 
-    print "F-measure:", 2.0*precision*recall/(precision+recall)
 
-    print "Micro Precision:", mprecision 
-    print "Micro Recall:", mrecall 
-    print "Micro F-measure:", 2.0*mprecision*mrecall/(mprecision+mrecall)
-    '''
-
-'''
-def roc(label_dir, output_dir, file_list, rd):
-    exps = []
-    for i in range(1,10):
-        exps.append(eval(label_dir, output_dir+"_0."+str(i), file_list, rd))
-#    exps = sorted(exps, key= lambda x: x["micro"]["recall"])
-    recalls = [x["micro"]["recall"] for x in exps]
-    precisions = [x["micro"]["precision"] for x in exps]
-    print recalls
-    print precisions
-
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-
-    plt.plot([x/10.0 for x in range(1,10)], precisions, 'r', label="precision")
-    plt.plot([x/10.0 for x in range(1,10)], recalls, 'b', label="recall")
-    plt.ylabel('accuracy')
-    plt.xlabel('Threshold')
-    plt.axis([0.0, 1.0, 0.0, 1.0])
-    plt.legend(loc='upper left')
-#    plt.show()
-    plt.savefig("roc.pdf")
-'''
-
+def eval_mimic(label_dir, output_dir, file_list, ont, snomed2icd, column=0):
+    matrix = get_confusion_matrix_mimic(label_dir, output_dir, file_list, ont, snomed2icd, column)
+    ret = { "macro": get_macro_stats(matrix),
+            "micro": get_micro_stats(matrix)}
+    return ret
 
 def main():
     parser = argparse.ArgumentParser(description='Hello!')
     parser.add_argument('label_dir', help="Path to the directory where the input text files are located")
     parser.add_argument('output_dir', help="Path to the directory where the output files will be stored")
     parser.add_argument('--obofile', help="address to the ontology .obo file")
+    parser.add_argument('--snomed2icd', help="address to the ontology .obo file")
     parser.add_argument('--oboroot', help="the concept in the ontology to be used as root (only this concept and its descendants will be used)")
-
     parser.add_argument('--file_list', help="Path to the directory where the output files will be stored")
     parser.add_argument('--comp_dir', help="Path to the directory where the output files will be stored")
+    parser.add_argument('--no_error', action="store_true")
+    parser.add_argument('--eval_mimic', action="store_true")
     parser.add_argument('--output_column', type=int, help="", default=0)
     args = parser.parse_args()
+    if args.no_error:
+        np.seterr(divide='ignore', invalid='ignore')
+    
 
-    file_list = os.listdir(args.output_dir)
+    if args.snomed2icd != None:
+        with open(args.snomed2icd, 'r') as fp:
+            snomed2icd = json.load(fp)
+
+    file_list = os.listdir(args.label_dir)
     if args.file_list != None:
         file_list = [x.strip() for x in open(args.file_list).readlines()]
 
     ont = Ontology(args.obofile, args.oboroot)
 
-    results = eval(args.label_dir, args.output_dir, file_list, ont, column=args.output_column)#, args.comp_dir)
-    #results = eval(args.label_dir, args.output_dir, open(args.file_list).readlines(), ont, args.comp_dir)
-    res_print = []
-    for style in ["micro", "vanila", "ont"]: 
-        for acc_type in ["precision", "recall", "fmeasure"]: 
-            res_print.append(results[style][acc_type])
-    res_print.append(results['jaccard'])
+    if args.eval_mimic:
+        results = eval_mimic(args.label_dir, args.output_dir, file_list, ont, snomed2icd, column=args.output_column)
+    else:
+        results = eval(args.label_dir, args.output_dir, file_list, ont, column=args.output_column)
+    print_results(results, args.eval_mimic)
 
-    res_print = [x*100 for x in res_print]
-    print("%.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f\\\\" % tuple(res_print))
-    #print "%.4f & %.4f & %.4f & %.4f & %.4f & %.4f & %.4f\\\\" % tuple(res_print)
-
-    #roc(args.label_dir, args.output_dir, args.file_list, rd)
 if __name__ == "__main__":
 	main()

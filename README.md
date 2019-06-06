@@ -3,9 +3,42 @@ NCR is a concept recognizer for annotating unstructured text with concepts from 
 
 ## Requirements
 * Python 3.5 or newer
-* NumPy & SciPy
-* Tensorflow 1.5 or newer
-* fasttext (https://pypi.python.org/pypi/fasttext)
+* Tensorflow 1.13 or newer
+* fastText Python binding (https://github.com/facebookresearch/fastText/tree/master/python)
+
+## Installation
+Install the latest version of TensorFlow (NCR was developed using the version 1.13). You can use pip for this:
+```
+$ pip3 install tensorflow-gpu
+```
+
+If you do not have access to GPUs, you can install the CPU version instead:
+```
+$ pip3 install tensorflow
+```
+
+Install fastText for python:
+```
+$ git clone https://github.com/facebookresearch/fastText.git
+$ pip3 install fastText/
+```
+
+Install NCR by simply cloning this repository:
+```
+$ git clone https://github.com/a-arbabi/NeuralCR.git
+```
+
+To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HPO](https://hpo.jax.org/app/) (release of 2019-06-03):
+```
+$ wget https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz
+$ tar -xzvf ncr_hpo_params.tar.gz
+```
+
+To verify if the pre-trained NCR is working, you can use the interactive session (more details [here](#interactive-session)) as follows:
+```
+$ python3 NeuralCR/interactive.py --params model_params/ --fasttext model_params/pmc_model_new.bin
+```
+
 
 ## Training
 The following files are needed to start the training:
@@ -22,13 +55,15 @@ The following arguments are mandatory:
   --output      location of the directroy where the trained model will be stored
   
  The following arguments are optional:
-  --neg_file    location the negative corpus
+  --neg_file    location of the negative corpus (text file)
+  --epochs      Number of training epochs [80]
+  --n_ensembles Number of ensembles [10]
   --flat        if this flag is passed training will ignore the taxonomy infomration provided in the ontology
   ```
 
 Example:
 ```
-$ python  train.py --obofile hp.obo --oboroot HP:0000118 --fasttext word_vectors.bin --neg_file wikipedia.txt --output trained_model/
+$ python3  train.py --obofile hp.obo --oboroot HP:0000118 --fasttext word_vectors.bin --neg_file wikipedia.txt --output model_params/
 ```
 ## Using the trained model
 
@@ -36,12 +71,12 @@ $ python  train.py --obofile hp.obo --oboroot HP:0000118 --fasttext word_vectors
 After training is finished, the model can be loaded inside a python script as follows:
 ```
 import ncrmodel 
-model = ncrmodel.NCRModel.loadfromfile(trained_model_dir, word_vectors_file)
+model = ncrmodel.NCR.loadfromfile(param_dir, word_model_file)
 ```
 
-Where `word_vectors` is the addresss to the fasttext word vector file and `trained_model_dir` is the address to the output directory of the training.
+Where `word_model_file` is the addresss to the fasttext word vector file and `param_dir` is the address to the output directory of the training.
 
-Then `model` can be used for matching a string to the closest concept:
+Then `model` can be used for matching a list of strings to the most similar concepts:
 ```
 model.get_match(['retina cancer', 'kidney disease'], 5)
 ```
@@ -49,11 +84,11 @@ The first argument of the above function call is a list of phrases to be matched
 
 The model can be also used for concept recognition in a larger text:
 ```
-model.annotate_text('The paitient was diagnosed with retina cancer', 0.5)
+model.annotate_text('The paitient was diagnosed with retina cancer', 0.8)
 ```
 Where the first argument is the input text string and the second argument is the concept calling score threshold.
 
-## Concept recongition
+### Concept recongition
 Concept recognition can be also performed using `annotate_text.py`. 
 ```
 The following arguments are mandatory:
@@ -68,7 +103,7 @@ The following arguments are optional:
 
 Example:
 ```
-$ python annotate_text.py --params trained_model --fasttext word_vectors.bin --input documents/ --output annotations/
+$ python3 annotate_text.py --params model_params --fasttext word_vectors.bin --input documents/ --output annotations/
 ```
 
 ### Interactive session
@@ -82,12 +117,53 @@ The following arguments are optional:
   --threshold   the score threshold for concept recognition [0.8]
 ```
 
-Example:
+* Example:
+Run the script:
 ```
-$ python interactive.py --params trained_model --fasttext word_vectors.bin 
+$ python3 interactive.py --params model_params --fasttext word_vectors.bin
+```
+Querry:
+```
 The patient was diagnosed with kidney cancer.
-44	57	HP:0009726	Renal neoplasm	0.96700555
+```
+Output:
+```
+31	44	HP:0009726	Renal neoplasm	0.98976994
 ```
 
+You can also link concepts to an isolated phrase by starting your query with `>`:
 
+Querry:
+```
+>kidney cancer
+```
+Output:
+```
+HP:0009726 Renal neoplasm 0.98976994
+HP:0005584 Renal cell carcinoma 0.0063989228
+HP:0030409 Renal transitional cell carcinoma 0.0014158536
+HP:0010786 Urinary tract neoplasm 0.00049688865
+HP:0000077 Abnormality of the kidney 0.0003460226
+```
+## Online app and API
+A web app is available for NCR trained on HPO:
+```
+https://ncr.ccm.sickkids.ca/curr/
+```
+
+## References
+Please cite NCR if you have used it in your work.
+
+```
+@article{arbabi2019identifying,
+  title={Identifying Clinical Terms in Medical Text Using Ontology-Guided Machine Learning},
+  author={Arbabi, Aryan and Adams, David R and Fidler, Sanja and Brudno, Michael},
+  journal={JMIR medical informatics},
+  volume={7},
+  number={2},
+  pages={e12596},
+  year={2019},
+  publisher={JMIR Publications Inc., Toronto, Canada}
+}
+```
 

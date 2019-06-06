@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--topk', type=int, help="", default=1)
     args = parser.parse_args()
     
-    model = ncrmodel.NCRModel.loadfromfile(args.params, args.fasttext)
+    model = ncrmodel.NCR.loadfromfile(args.params, args.fasttext)
 
     samples = prepare_phrase_samples(model.ont, args.input, True)
 
