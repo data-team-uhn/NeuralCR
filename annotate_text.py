@@ -13,18 +13,18 @@ def annotate_stream(model, threshold, input_iterator, output_writer):
         sys.stdout.flush()
         ants = model.annotate_text(text,\
                 threshold=threshold)
-        output_writer.write(key,ants)
+        output_writer.write(key,ants, model)
     sys.stdout.write("\n")
 
 class DirOutputStream:
     def __init__(self, output_dir):
         self.output_dir = output_dir
-    def write(self, key, ants):
+    def write(self, key, ants, model):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         with open(self.output_dir+'/'+key,'w') as fp:
             for ant in ants:
-                fp.write('\t'.join(map(str,ant))+'\n')
+                fp.write('\t'.join(map(str,ant))+'\t'+model.ont.names[ant[2]][0]+'\n')
 
 class CSVOutputStream:
     def __init__(self, output_csv_file):
@@ -49,7 +49,7 @@ class DirInputStream:
     
     def __next__(self):                           
         filename = next(self.filelist_iter)
-        return filename, open(self.input_dir+'/'+filename).read()
+        return filename, open(self.input_dir+'/'+filename, encoding='utf-8').read()
 
 class JsonInputStream:
     def __init__(self, input_json_file):
