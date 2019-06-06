@@ -145,7 +145,7 @@ HP:0030409 Renal transitional cell carcinoma 0.0014158536
 HP:0010786 Urinary tract neoplasm 0.00049688865
 HP:0000077 Abnormality of the kidney 0.0003460226
 ```
-## Online app and API
+## Online Web App and API
 A web app is available for NCR trained on HPO:
 ```
 https://ncr.ccm.sickkids.ca/curr/
