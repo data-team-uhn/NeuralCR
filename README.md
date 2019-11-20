@@ -1,5 +1,5 @@
 ## Introduction
-NCR is a concept recognizer for annotating unstructured text with concepts from an ontology. In its core, NCR uses a deep neural network trained to classify input phrases with concepts in a given ontology, and is capable of generalizing to synonyms not explicitly available. concept recognizer for annotating unstructured text with concepts from an ontology.
+NCR is a concept recognizer for annotating unstructured text with concepts from an ontology. In its core, NCR uses a deep neural network trained to classify input phrases with concepts in a given ontology, and is capable of generalizing to synonyms not explicitly available.
 
 ## Requirements
 * Python 3.5 or newer
@@ -7,7 +7,7 @@ NCR is a concept recognizer for annotating unstructured text with concepts from 
 * fastText Python binding (https://github.com/facebookresearch/fastText/tree/master/python)
 
 ## Installation
-Install the latest version of TensorFlow (NCR was developed using the version 1.13). You can use pip for this:
+Install the latest version of TensorFlow (NCR was developed using version 1.13). You can use pip for this:
 ```
 $ pip3 install tensorflow-gpu
 ```
@@ -28,7 +28,7 @@ Install NCR by simply cloning this repository:
 $ git clone https://github.com/ccmbioinfo/NeuralCR.git
 ```
 
-To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HPO](https://hpo.jax.org/app/) (release of 2019-06-03):
+To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HPO, the Human Phenotype Ontology](https://hpo.jax.org/app/) (release of 2019-06-03):
 ```
 $ wget https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz
 $ tar -xzvf ncr_hpo_params.tar.gz
@@ -38,7 +38,6 @@ To verify if the pre-trained NCR is working, you can use the interactive session
 ```
 $ python3 NeuralCR/interactive.py --params model_params/ --fasttext model_params/pmc_model_new.bin
 ```
-
 
 ## Training
 The following files are needed to start the training:
@@ -58,7 +57,7 @@ The following arguments are mandatory:
   --neg_file    location of the negative corpus (text file)
   --epochs      Number of training epochs [80]
   --n_ensembles Number of ensembles [10]
-  --flat        if this flag is passed training will ignore the taxonomy infomration provided in the ontology
+  --flat        if this flag is passed, training will ignore the taxonomy information provided in the ontology
   ```
 
 Example:
