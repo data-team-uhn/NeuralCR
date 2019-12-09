@@ -149,6 +149,31 @@ A web app is available for NCR trained on HPO:
 
 https://ncr.ccm.sickkids.ca/curr/
 
+## Providing a REST API with Docker
+
+Build the Docker container:
+
+```bash
+docker build -t docker-neuralcr .
+```
+
+Download the pre-trained NCR model from
+[here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz)
+and un-tar.
+
+Run the Docker container, replacing `/PATH/TO/model_params` with the
+absolute file path to the directory `model_params` extracted from the
+file ncr_hpo_params.tar.gz:
+
+```bash
+docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5000:5000 -it docker-neuralcr
+```
+
+Test it with a sample input:
+
+```bash
+curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.
+```
 
 ## References
 Please cite NCR if you have used it in your work.

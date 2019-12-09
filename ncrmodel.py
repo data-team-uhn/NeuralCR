@@ -3,7 +3,8 @@ import numpy as np
 import random
 import json
 import pickle 
-import fastText
+#import fastText
+import fasttext as fastText
 import re
 tf.enable_eager_execution()
 
