@@ -155,7 +155,7 @@ https://ncr.ccm.sickkids.ca/curr/
 Build the Docker container:
 
 ```bash
-docker build -t docker-neuralcr .
+docker build -t ccmsk/neuralcr .
 ```
 
 Download the pre-trained NCR model from
@@ -167,7 +167,7 @@ absolute file path to the directory `model_params` extracted from the
 file ncr_hpo_params.tar.gz:
 
 ```bash
-docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5000:5000 -it docker-neuralcr
+docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5000:5000 -it ccmsk/neuralcr
 ```
 
 Test it with a sample input:
