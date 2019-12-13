@@ -1,5 +1,6 @@
 #!flask/bin/python
 import json
+
 from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
 import os
@@ -7,14 +8,40 @@ from collections import OrderedDict
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
+import train
+from generate_qsub_job import generate_qsub_job
+
+CONST_HOMEDIR = os.environ['HOME']
+
+CONST_FASTTEXT_WORD_VECTOR_FILEPATH = "{}/opt/ncr/model_params/pmc_model_new.bin" #Relative to $HOME
+CONST_NEGFILE_FILEPATH = "{}/wikipedia_small.txt" #Relative to $HOME
+CONST_UPLOADED_OBO_DIR = "{}/uploaded_obo" #Relative to $HOME
+CONST_PARAMS_FILEPATH = "{}/trained_model_param" #Relative to $HOME
+CONST_QSUB_FILEPATH = "{}/qsub" #Relative to $HOME
 
 app = Flask(__name__)
 
-#'''
+'''
 model = ncrmodel.NCR.loadfromfile('model_params', 'model_params/pmc_model_new.bin')
 threshold = 0.6
-#'''
+'''
 
+#Stored in a form of {"object": model object, "threshold": threshold value}
+NCR_MODELS = {}
+
+#For now, to be later fixed...
+NCR_MODELS['HPO'] = {}
+NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('model_params', 'model_params/pmc_model_new.bin')
+NCR_MODELS['HPO']['threshold'] = 0.6
+
+RUNNING_JOB_STATUS = {}
+
+running_job_id = 0
+def generate_job_id():
+  global running_job_id
+  assign_job_id = running_job_id
+  running_job_id += 1
+  return assign_job_id
 
 @app.route('/', methods=['POST'])
 def main_page():
@@ -48,6 +75,68 @@ def dated_url_for(endpoint, **values):
             values['q'] = int(os.stat(file_path).st_mtime)
     return url_for(endpoint, **values)
 
+
+@app.route('/lsmodels/')
+def ls_models():
+    new_mapping = {}
+    for k in NCR_MODELS.keys():
+        new_mapping[k] = {}
+        for param in NCR_MODELS[k].keys():
+            if param == 'object':
+                continue #Can't serialize this to JSON
+            new_mapping[k][param] = NCR_MODELS[k][param]
+    return jsonify(new_mapping)
+
+@app.route('/delete_model/')
+def delete_model():
+    if not 'model' in request.args:
+        abort(400)
+    if request.args['model'] not in NCR_MODELS:
+        abort(400)
+    del NCR_MODELS[request.args['model']]
+    return jsonify({'status': 'success'})
+
+
+#Serve the webpage for model training
+@app.route('/submit_training_job/', methods=['GET'])
+def submit_training_job_get():
+    return render_template("submit_training_job.html")
+
+#Receive the upload form including the OBO ontology file for model training
+@app.route('/submit_training_job/', methods=['POST'])
+def submit_training_job_post():
+    if 'ontology' not in request.files:
+      abort(400)
+    
+    if 'name' not in request.form:
+      abort(400)
+    
+    #Generate a JOB ID for this training task
+    j_id = generate_job_id()
+    
+    ontology_file = request.files['ontology']
+    ontology_filepath = "{}/{}.obo".format(CONST_UPLOADED_OBO_DIR, j_id)
+    ontology_file.save(ontology_filepath.format(CONST_HOMEDIR))
+    
+    #Start the training
+    print("[JOB: {}] Queue'd training model {}, at root={}...".format(j_id, request.form['name'], request.form['oboroot']))
+    params_output_dir = CONST_PARAMS_FILEPATH + "/{}/".format(j_id)
+    training_proc_args = train.MainTrainArgClass(
+      obofile=ontology_filepath,
+      oboroot=request.form['oboroot'],
+      fasttext=CONST_FASTTEXT_WORD_VECTOR_FILEPATH,
+      neg_file=CONST_NEGFILE_FILEPATH,
+      output=params_output_dir,
+      verbose=True
+      )
+    
+    generate_qsub_job(CONST_QSUB_FILEPATH.format(CONST_HOMEDIR), j_id, training_proc_args)
+    return jsonify({'status': 'started', 'id': j_id})
+
+#Check the status of a running training job
+@app.route('/check_job_status')
+def check_job_status():
+    pass
 
 """
 @api {post} /match/ POST Method
@@ -189,9 +278,13 @@ Content-Type: application/json
 """
 @app.route('/match/', methods=['GET'])
 def match_get():
+    if not 'model' in request.args:
+        abort(400)
+    if request.args['model'] not in NCR_MODELS:
+        abort(400)
     if not 'text' in request.args:
         abort(400)
-    res = match(request.args['text'])
+    res = match(NCR_MODELS[request.args['model']]['object'], request.args['text'])
     return jsonify(res)
 
 """
@@ -284,12 +377,16 @@ Content-Type: application/json
 """
 @app.route('/annotate/', methods=['GET'])
 def annotate_get():
+    if not 'model' in request.args:
+        abort(400)
+    if request.args['model'] not in NCR_MODELS:
+        abort(400)
     if not 'text' in request.args:
         abort(400)
-    res = annotate(request.args['text'])
+    res = annotate(NCR_MODELS[request.args['model']]['object'], NCR_MODELS[request.args['model']]['threshold'], request.args['text'])
     return jsonify(res)
 
-def match(text):
+def match(model, text):
     matches = model.get_match([text], 10)[0]
     res = []
     for x in matches:
@@ -300,7 +397,7 @@ def match(text):
         res.append(tmp)
     return {"matches":res}
 
-def annotate(text):
+def annotate(model, threshold, text):
     matches = model.annotate_text(text, threshold)
     #matches = textAnt.process_text(text, 0.6, True)
     res = []
