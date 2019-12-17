@@ -21,6 +21,13 @@ import shutil
 import random
 #tf.enable_eager_execution() #For HPF
 
+#Workaround for broken STDOUT/STDERR on HPF
+main_train_log = open("{}/training_log.log".format(os.environ['HOME']), 'w')
+def print(s):
+  main_train_log.write(s)
+  main_train_log.write("\n")
+  main_train_log.flush()
+
 def save_ont_and_args(ont, args, param_dir):
   pickle.dump(ont, open(param_dir+'/ont.pickle',"wb" )) 
   with open(param_dir+'/config.json', 'w') as fp:
@@ -272,7 +279,7 @@ def main_train(training_args):
         print("R@5: "+ str((len(samples)-len(missed))/len(samples)))
     if epoch%5==0 and epoch>0: 
         for x in model.get_match('blood examination', 5):
-            print(x[0], (ont.names[x[0]] if x[0]!='None' else x[0]), x[1])
+            print("{}, {}, {}".format(x[0], (ont.names[x[0]] if x[0]!='None' else x[0]), x[1]))
 
   
   save_ont_and_args(ont, args, param_dir)
