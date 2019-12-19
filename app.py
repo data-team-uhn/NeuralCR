@@ -34,6 +34,10 @@ NCR_MODELS['HPO'] = {}
 NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('model_params', 'model_params/pmc_model_new.bin')
 NCR_MODELS['HPO']['threshold'] = 0.6
 
+NCR_MODELS['MONDO'] = {}
+NCR_MODELS['MONDO']['object'] = ncrmodel.NCR.loadfromfile('mondo_model_params', 'model_params/pmc_model_new.bin')
+NCR_MODELS['MONDO']['threshold'] = 0.6 #Just a copy+paste, should have better reasoning for selecting this value
+
 RUNNING_JOB_STATUS = {}
 
 running_job_id = 0
