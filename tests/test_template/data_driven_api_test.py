@@ -16,4 +16,13 @@ RESULT_DATA = json.loads(f_result.read())
 f_result.close()
 
 req = requests.get(URL_DATA)
-assert json.loads(req.text) == RESULT_DATA
+try:
+	assert json.loads(req.text) == RESULT_DATA
+except AssertionError:
+	print("=== BEGIN EXPECTED ===")
+	print(RESULT_DATA)
+	print("=== END EXPECTED ===")
+	
+	print("=== BEGIN ACTUAL ===")
+	print(json.loads(req.text))
+	print("=== END ACTUAL ===")
