@@ -2,7 +2,9 @@ import tensorflow as tf
 import numpy as np
 import random
 import json
-import pickle
+
+from collections import namedtuple
+from onto import Ontology
 
 #Necessary so that it works both locally and also on HPF
 try:
@@ -120,8 +122,11 @@ class NCR():
 
   @classmethod
   def loadfromfile(cls, param_dir, word_model_file):
-    ont = pickle.load(open(param_dir+'/ont.pickle',"rb" )) 
-
+    #ont = pickle.load(open(param_dir+'/ont.pickle',"rb" ))
+    #Don't load from pickle - this is dangerous ... instead load the OBO file
+    ont_dict = json.load(open(param_dir+'/onto.json', 'r'))
+    ont = namedtuple('Struct', ont_dict.keys())(*ont_dict.values())
+    
     class Config(object):
       def __init__(self, d):
         self.__dict__ = d

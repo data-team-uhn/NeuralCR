@@ -97,4 +97,15 @@ class Ontology():
                 self.ancestor_weight[pid][ancestor]/num_parents)
 
     return self.ancestor_weight[cid].keys()
+  
+  def to_dict(self):
+    ret = {}
+    ret['concepts'] = self.concepts
+    ret['names'] = self.names
+    ret['concept2id'] = self.concept2id
+    ret['sparse_ancestors'] = self.sparse_ancestors
+    ret['sparse_ancestors_values'] = self.sparse_ancestors_values
+    ret['root_id'] = self.root_id
+    ret['name2conceptid'] = self.name2conceptid
+    return ret
 
