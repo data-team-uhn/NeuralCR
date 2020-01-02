@@ -1,1 +1,1 @@
-{"matches": [{"start": 32, "score": "0.99479705", "names": ["Neoplasm of the lung", "Lung cancer", "Lung tumor"], "hp_id": "HP:0100526", "end": 43}]}
+{"matches": [{"end": 43, "hp_id": "HP:0100526", "names": ["Neoplasm of the lung", "Lung cancer", "Lung tumor"], "score": "0.9941615", "start": 32}]}

@@ -1,1 +1,1 @@
-{"MONDO": {"threshold": 0.6}, "HPO": {"threshold": 0.6}}
+{"HPO": {"threshold": 0.6}, "MONDO": {"threshold": 0.6}}
