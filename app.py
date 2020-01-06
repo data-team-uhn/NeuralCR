@@ -315,6 +315,6 @@ def annotate(text):
 
 
 if __name__ == '__main__':
-    print("Model loaded")
+    print "Model loaded"
     app.run()
 
