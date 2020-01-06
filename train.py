@@ -143,7 +143,7 @@ def main():
           report_loss = 0
         ct += 1
         epoch_ct += 1
-    print("epoch loss:", epoch_loss/epoch_ct)
+    print("epoch loss:" + str(epoch_loss/epoch_ct))
     if args.sentence_val_input_dir != None and (epoch==args.epochs-1 or (epoch%args.validation_rate==0 and epoch>min(args.epochs//2, 30))): 
         sent_input_stream = annotate_text.DirInputStream(args.sentence_val_input_dir)
         sent_output_stream = annotate_text.DirOutputStream(tmp_dirpath)
