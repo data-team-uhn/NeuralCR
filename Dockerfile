@@ -9,9 +9,12 @@ RUN apt-get update && apt-get install -y g++
 RUN pip3 install 'cython' 'scipy' 'tensorflow==1.13.2' 'fasttext==0.9.1' 'Flask==1.1.1'
 
 # Put everything in /opt/ncr
-RUN mkdir -p /opt/ncr/
-WORKDIR /opt/ncr/
-COPY * ./
+RUN mkdir -p /root/opt/ncr/
+WORKDIR /root/opt/ncr/
+COPY . ./
+RUN mkdir /root/uploaded_obo
+RUN mkdir /root/trained_model_param
+RUN mkdir /root/qsub
 
 # This is the default command executed when starting the container
 ENTRYPOINT python3 app.py

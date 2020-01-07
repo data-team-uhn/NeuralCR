@@ -3,7 +3,13 @@ import numpy as np
 import random
 import json
 import pickle
-import fasttext as fastText
+
+#Necessary so that it works both locally and also on HPF
+try:
+  import fasttext as fastText
+except ImportError:
+  import fastText
+
 import re
 tf.enable_eager_execution()
 
