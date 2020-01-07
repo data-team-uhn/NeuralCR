@@ -4,7 +4,7 @@ import numpy as np
 import os
 from onto import Ontology
 import json
-import fastText
+import fasttext as fastText
 import pickle 
 import tensorflow as tf
 import accuracy

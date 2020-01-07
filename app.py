@@ -11,7 +11,7 @@ import ncrmodel
 app = Flask(__name__)
 
 #'''
-model = ncrmodel.NCRModel.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
+model = ncrmodel.NCR.loadfromfile('model_params', 'model_params/pmc_model_new.bin')
 threshold = 0.6
 #'''
 
@@ -315,6 +315,6 @@ def annotate(text):
 
 
 if __name__ == '__main__':
-    print "Model loaded"
-    app.run()
+    print("Model loaded")
+    app.run(host='0.0.0.0')
 
