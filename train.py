@@ -5,7 +5,6 @@ import os
 from onto import Ontology
 import json
 import fasttext as fastText
-import pickle 
 import tensorflow as tf
 import accuracy
 import annotate_text
@@ -16,9 +15,11 @@ import random
 tf.enable_eager_execution()
 
 def save_ont_and_args(ont, args, param_dir):
-  pickle.dump(ont, open(param_dir+'/ont.pickle',"wb" )) 
   with open(param_dir+'/config.json', 'w') as fp:
     json.dump(vars(args),fp)
+  
+  with open(param_dir+'/onto.json', 'w') as fp:
+    json.dump(ont.to_dict(), fp)
 
 def sample_negatives_from_file(file_addr, count):
   max_text_size = 10*1000*1000
