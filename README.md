@@ -176,6 +176,41 @@ curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+c
 ```
 
 
+## Running Continuous Integration Tests
+
+1. Clone the git repository
+
+2. Build the Docker container
+
+```bash
+cd NeuralCR
+docker build -t ccmsk/neuralcr .
+```
+
+3. Download the pre-trained models and un-tar in the *home* directory
+
+```bash
+cd ~
+wget https://github.com/IntegralProgrammer/NeuralCR/releases/download/v0.1.1/ncr_model_params.tar.gz
+tar -xvf ncr_model_params.tar.gz
+```
+
+4. Re-enter the *NeuralCR* repository directory and start the Docker container
+
+```bash
+cd NeuralCR
+./docker_run_webapp.sh
+```
+
+5. Start a shell on the Docker container and execute the tests
+
+```bash
+docker ps #Get the name of the docker container
+docker exec -it NAMEOFCONTAINER /bin/bash
+cd tests/ci_tests
+./test_all.sh
+```
+
 ## References
 Please cite NCR if you have used it in your work.
 
