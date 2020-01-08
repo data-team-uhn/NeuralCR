@@ -174,30 +174,7 @@ Test it with a sample input:
 ```bash
 curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
 ```
-## Generating Model Training Jobs for HPF
 
-1. Start the Docker container:
-
-```bash
-./docker_run_webapp.sh
-```
-
-2. Then, upload an OBO file and specify an ontology root through the Web UI.
-
-3. Send the jobs over to HPF
-
-```bash
-./sync_to_hpf.sh <HPF USERNAME>
-```
-
-4. Login to HPF and queue the ML jobs
-
-```bash
-ssh <HPF USERNAME>@hpf.ccm.sickkids.ca
-mkdir ~/ncr_logs/<JOB ID>
-cd ~/qsub
-qsub <JOB ID>.sh
-```
 
 ## References
 Please cite NCR if you have used it in your work.
