@@ -2,8 +2,11 @@ import tensorflow as tf
 import numpy as np
 import random
 import json
-import pickle
 import fasttext as fastText
+
+from collections import namedtuple
+from onto import Ontology
+
 import re
 tf.enable_eager_execution()
 
@@ -114,8 +117,9 @@ class NCR():
 
   @classmethod
   def loadfromfile(cls, param_dir, word_model_file):
-    ont = pickle.load(open(param_dir+'/ont.pickle',"rb" )) 
-
+    ont_dict = json.load(open(param_dir+'/onto.json', 'r'))
+    ont = namedtuple('Struct', ont_dict.keys())(*ont_dict.values())
+    
     class Config(object):
       def __init__(self, d):
         self.__dict__ = d
