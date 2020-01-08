@@ -172,8 +172,9 @@ docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5
 Test it with a sample input:
 
 ```bash
-curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.
+curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
 ```
+
 
 ## References
 Please cite NCR if you have used it in your work.
