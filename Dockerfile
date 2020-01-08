@@ -13,8 +13,5 @@ RUN mkdir -p /root/opt/ncr/
 WORKDIR /root/opt/ncr/
 COPY . ./
 
-# Support this hack needed for HPF
-RUN cp /usr/local/lib/python3.6/site-packages/orangecontrib/bio/ontology.py orangecontrib_bio_ontology.py
-
 # This is the default command executed when starting the container
 ENTRYPOINT python3 app.py
