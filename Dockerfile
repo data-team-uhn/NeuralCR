@@ -3,7 +3,7 @@
 FROM python:3.6-slim-buster
 
 # Install gcc, needed to build fasttext
-RUN apt-get update && apt-get install -y g++
+RUN apt-get update && apt-get install -y g++ wget wait-for-it
 
 # Install dependencies
 RUN pip3 install 'cython==0.29.14' 'scipy==1.4.0' 'tensorflow==1.13.2' 'fasttext==0.9.1' 'Flask==1.1.1' 'Orange-Bioinformatics==2.6.25'
@@ -14,4 +14,10 @@ WORKDIR /root/opt/ncr/
 COPY . ./
 
 # This is the default command executed when starting the container
-ENTRYPOINT python3 app.py
+COPY startup_script.sh /
+RUN chmod u+x /startup_script.sh
+COPY download_trained_models.sh /
+RUN chmod u+x /download_trained_models.sh
+COPY auto_test.sh /
+RUN chmod u+x /auto_test.sh
+ENTRYPOINT /startup_script.sh

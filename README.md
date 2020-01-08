@@ -202,6 +202,21 @@ cd NeuralCR
 ./docker_run_webapp.sh
 ```
 
+4.1. To have the tests execute automatically, run instead:
+
+```bash
+cd NeuralCR
+AUTOTEST=true ./docker_run_webapp.sh
+```
+
+4.2 If you wish to have the test case automatically download the trained
+models, run instead:
+
+```bash
+cd NeuralCR
+AUTOTEST=true ./docker_run_webapp_nomount.sh
+```
+
 5. Start a shell on the Docker container and execute the tests
 
 ```bash
