@@ -199,14 +199,14 @@ tar -xvf ncr_model_params.tar.gz
 
 ```bash
 cd NeuralCR
-./docker_run_webapp.sh
+LOCALMOUNT=true ./docker_run_webapp.sh
 ```
 
 4.1. To have the tests execute automatically, run instead:
 
 ```bash
 cd NeuralCR
-AUTOTEST=true ./docker_run_webapp.sh
+LOCALMOUNT=true AUTOTEST=true ./docker_run_webapp.sh
 ```
 
 4.1.1 To ignore the `score` parameter when performing the tests, run with
@@ -214,15 +214,15 @@ the environment variable `TEST_IGNORE_SCORE` set to *true*:
 
 ```bash
 cd NeuralCR
-AUTOTEST=true TEST_IGNORE_SCORE=true ./docker_run_webapp.sh
+LOCALMOUNT=true AUTOTEST=true TEST_IGNORE_SCORE=true ./docker_run_webapp.sh
 ```
 
 4.2 If you wish to have the test case automatically download the trained
-models, run instead:
+models, omit the `LOCALMOUNT` environment variable:
 
 ```bash
 cd NeuralCR
-AUTOTEST=true ./docker_run_webapp_nomount.sh
+AUTOTEST=true ./docker_run_webapp.sh
 ```
 
 5. Start a shell on the Docker container and execute the tests
