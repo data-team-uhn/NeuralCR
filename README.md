@@ -191,7 +191,7 @@ docker build -t ccmsk/neuralcr .
 
 ```bash
 cd ~
-wget https://github.com/IntegralProgrammer/NeuralCR/releases/download/v0.1.1/ncr_model_params.tar.gz
+wget https://github.com/ccmbioinfo/NeuralCR/releases/download/1.0/ncr_model_params.tar.gz
 tar -xvf ncr_model_params.tar.gz
 ```
 
