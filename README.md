@@ -51,7 +51,7 @@ The following arguments are mandatory:
   --obofile     location of the ontology .obo file
   --oboroot     the concept in the ontology to be used as root (only this concept and its descendants will be used)
   --fasttext    location of the fasttext word vector file
-  --output      location of the directroy where the trained model will be stored
+  --output      location of the directory where the trained model will be stored
   
  The following arguments are optional:
   --neg_file    location of the negative corpus (text file)
@@ -73,7 +73,7 @@ import ncrmodel
 model = ncrmodel.NCR.loadfromfile(param_dir, word_model_file)
 ```
 
-Where `word_model_file` is the addresss to the fasttext word vector file and `param_dir` is the address to the output directory of the training.
+Where `word_model_file` is the address to the fasttext word vector file and `param_dir` is the address to the output directory of the training.
 
 Then `model` can be used for matching a list of strings to the most similar concepts:
 ```
@@ -83,18 +83,18 @@ The first argument of the above function call is a list of phrases to be matched
 
 The model can be also used for concept recognition in a larger text:
 ```
-model.annotate_text('The paitient was diagnosed with retina cancer', 0.8)
+model.annotate_text('The patient was diagnosed with retina cancer', 0.8)
 ```
 Where the first argument is the input text string and the second argument is the concept calling score threshold.
 
-### Concept recongition
+### Concept recognition
 Concept recognition can be also performed using `annotate_text.py`. 
 ```
 The following arguments are mandatory:
-  --params      address to the directroy where the trained model parameters are stored
+  --params      address to the directory where the trained model parameters are stored
   --fasttext    address to the fasttext word vector file
   --input       address to the directory where the input text files are located
-  --output      adresss to the directory where the output files will be stored
+  --output      address to the directory where the output files will be stored
   
 The following arguments are optional:
   --threshold   the score threshold for concept recognition [0.8]
@@ -109,7 +109,7 @@ $ python3 annotate_text.py --params model_params --fasttext word_vectors.bin --i
 Concept recognition can be done in an interactive session through `interactive.py`. After the model is loaded, concept recognition will be performed on the standard input.
 ```
 The following arguments are mandatory:
-  --params      address to the directroy where the trained model parameters are stored
+  --params      address to the directory where the trained model parameters are stored
   --fasttext    address to the fasttext word vector file
   
 The following arguments are optional:
@@ -121,7 +121,7 @@ Run the script:
 ```
 $ python3 interactive.py --params model_params --fasttext word_vectors.bin
 ```
-Querry:
+Query:
 ```
 The patient was diagnosed with kidney cancer.
 ```
@@ -132,7 +132,7 @@ Output:
 
 You can also link concepts to an isolated phrase by starting your query with `>`:
 
-Querry:
+Query:
 ```
 >kidney cancer
 ```
@@ -172,7 +172,7 @@ docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5
 Test it with a sample input:
 
 ```bash
-curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
+curl http://127.0.0.1:5000/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
 ```
 
 

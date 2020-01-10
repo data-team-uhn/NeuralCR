@@ -90,7 +90,7 @@ Returns a list of concept classes from the ontology that best match the input te
 @apiParam {String} text Input term
 
 @apiSuccess {Object[]} matches list of top matching classes
-@apiSuccess {String} matches.hp_id  Class identifer
+@apiSuccess {String} matches.hp_id  Class identifier
 @apiSuccess {String[]} matches.names  List of names and synonyms of the matched class
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
@@ -128,7 +128,7 @@ Returns a ranked list of top concept classes from the ontology that best match t
 @apiParam {String} text Input term.
 
 @apiSuccess {Object[]} matches list of top matching classes
-@apiSuccess {String} matches.hp_id  Class identifer
+@apiSuccess {String} matches.hp_id  Class identifier
 @apiSuccess {String[]} matches.names  List of names and synonyms of the matched class
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
@@ -259,12 +259,12 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 @apiSuccess {Object[]} matches List of recognized concepts
 @apiSuccess {Integer} matches.start  Start location of the match in text
 @apiSuccess {Integer} matches.end  End location of the match in text
-@apiSuccess {String} matches.hp_id  Class identifer
+@apiSuccess {String} matches.hp_id  Class identifier
 @apiSuccess {String[]} matches.names  List of names and synonyms of the matched class
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
-    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The paitient was diagnosed with both cardiac disease and renal cancer.", "model": "HPO"}' http://ncr.ccm.sickkids.ca/curr/annotate/
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The patient was diagnosed with both cardiac disease and renal cancer.", "model": "HPO"}' http://ncr.ccm.sickkids.ca/curr/annotate/
 
 """
 @app.route('/annotate/', methods=['POST'])
@@ -298,12 +298,12 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 @apiSuccess {Object[]} matches List of recognized concepts
 @apiSuccess {Integer} matches.start  Start location of the match in text
 @apiSuccess {Integer} matches.end  End location of the match in text
-@apiSuccess {String} matches.hp_id  Class identifer
+@apiSuccess {String} matches.hp_id  Class identifier
 @apiSuccess {String[]} matches.names  List of names and synonyms of the matched class
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
-    curl -i http://ncr.ccm.sickkids.ca/curr/annotate/?text=The+paitient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.
+    curl -i http://ncr.ccm.sickkids.ca/curr/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.
 
 @apiSuccessExample {json} Success-Response:
 HTTP/1.1 200 OK
