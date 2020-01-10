@@ -176,6 +176,64 @@ curl http://127.0.0.1:5000/annotate/?text=The+paitient+was+diagnosed+with+both+c
 ```
 
 
+## Running Continuous Integration Tests
+
+1. Clone the git repository
+
+2. Build the Docker container
+
+```bash
+cd NeuralCR
+docker build -t ccmsk/neuralcr .
+```
+
+3. Download the pre-trained models and un-tar in the *home* directory
+
+```bash
+cd ~
+wget https://github.com/ccmbioinfo/NeuralCR/releases/download/1.0/ncr_model_params.tar.gz
+tar -xvf ncr_model_params.tar.gz
+```
+
+4. Re-enter the *NeuralCR* repository directory and start the Docker container
+
+```bash
+cd NeuralCR
+LOCALMOUNT=true ./docker_run_webapp.sh
+```
+
+4.1. To have the tests execute automatically, run instead:
+
+```bash
+cd NeuralCR
+LOCALMOUNT=true AUTOTEST=true ./docker_run_webapp.sh
+```
+
+4.1.1 To ignore the `score` parameter when performing the tests, run with
+the environment variable `TEST_IGNORE_SCORE` set to *true*:
+
+```bash
+cd NeuralCR
+LOCALMOUNT=true AUTOTEST=true TEST_IGNORE_SCORE=true ./docker_run_webapp.sh
+```
+
+4.2 If you wish to have the test case automatically download the trained
+models, omit the `LOCALMOUNT` environment variable:
+
+```bash
+cd NeuralCR
+AUTOTEST=true ./docker_run_webapp.sh
+```
+
+5. Start a shell on the Docker container and execute the tests
+
+```bash
+docker ps #Get the name of the docker container
+docker exec -it NAMEOFCONTAINER /bin/bash
+cd tests/ci_tests
+./test_all.sh
+```
+
 ## References
 Please cite NCR if you have used it in your work.
 
