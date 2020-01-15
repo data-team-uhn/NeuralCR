@@ -60,6 +60,10 @@ NCR_MODELS['MONDO']['threshold'] = 0.6 #Just a copy+paste, should have better re
 
 AVAILABLE_MODEL_ID = []
 def update_ncr_model_list():
+  if 'AUTOTEST' in os.environ:
+    if len(os.environ['AUTOTEST']) != 0:
+      return
+   
   #Check for complete jobs under /complete in WebDAV
   complete_req = requests.get(COMPLETE_WEBDAV_URL + "/", verify=WEBDAV_CERTPATH, auth=HTTPBasicAuth('user', WEBDAV_APIKEY))
   complete_lines = complete_req.text.split('\n')
