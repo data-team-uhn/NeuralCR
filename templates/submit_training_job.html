@@ -1,0 +1,40 @@
+<html>
+	<head>
+		<title>NeuralCR</title>
+	</head>
+	<body>
+		<h1>Submit NeuralCR Training Job</h1>
+		<form enctype="multipart/form-data" method="post">
+			<table>
+				<tr>
+					<td>
+						Ontology File
+					</td>
+					<td>
+						Model Name
+					</td>
+					<td>
+						OBO Root
+					</td>
+					<td>
+						Ready
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<input type="file" name="ontology" accept=".obo">
+					</td>
+					<td>
+						<input type="text" name="name">
+					</td>
+					<td>
+						<input type="text" name="oboroot">
+					</td>
+					<td>
+						<input type="submit">
+					</td>
+				</tr>
+			</table>
+		</form>
+	</body>
+</html>
