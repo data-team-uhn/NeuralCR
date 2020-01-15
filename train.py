@@ -12,7 +12,22 @@ import eval
 import tempfile
 import shutil
 import random
-tf.enable_eager_execution()
+
+import requests
+from requests import HTTPBasicAuth
+
+LOGGING_WEBDAV_URL = os.environ['LOGGING_WEBDAV_URL']
+LOGGING_WEBDAV_CERTPATH = os.environ['LOGGING_WEBDAV_CERTPATH']
+LOGGING_WEBDAV_APIKEY = os.environ['LOGGING_WEBDAV_APIKEY']
+
+debug_info_index = 0
+def print(s):
+	global debug_info_index
+	requests.put(LOGGING_WEBDAV_URL + "/{}.logmsg".format(debug_info_index),
+		verify=LOGGING_WEBDAV_CERTPATH,
+		auth=HTTPBasicAuth('user', LOGGING_WEBDAV_APIKEY),
+		data=str(s))
+	debug_info_index += 1
 
 def save_ont_and_args(ont, args, param_dir):
   with open(param_dir+'/config.json', 'w') as fp:
