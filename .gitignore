@@ -1,0 +1,8 @@
+# IntelliJ IDEA directory.
+.idea
+
+# MacOS specific directory.
+.DS_Store
+
+# Compiled code.
+__pycache__
