@@ -3,7 +3,7 @@ import numpy as np
 import random
 import json
 import pickle 
-import fastText
+import fasttext
 import re
 tf.enable_eager_execution()
 
@@ -97,7 +97,7 @@ class NCR():
     self.config = config
     self.ont = ont
     print('Loading the fasttext model...')
-    self.word_model = fastText.load_model(word_model_file)
+    self.word_model = fasttext.load_model(word_model_file)
 
     print('Initializing NCR parameters...')
     self.ncr_cores = [NCRCore(config, ont) for i in range(config.n_ensembles)]

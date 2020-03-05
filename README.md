@@ -3,24 +3,23 @@ NCR is a concept recognizer for annotating unstructured text with concepts from 
 
 ## Requirements
 * Python 3.5 or newer
-* Tensorflow 1.13 or newer
-* fastText Python binding (https://github.com/facebookresearch/fastText/tree/master/python)
+* Tensorflow 1.13 or newer (>=2.0 currently not supported)
+* fastText 0.9.1 or newer
 
 ## Installation
 Install the latest version of TensorFlow (NCR was developed using version 1.13). You can use pip for this:
 ```
-$ pip3 install tensorflow-gpu
+$ pip3 install 'tensorflow-gpu>=1.13.0,<2.0.0' --force-reinstall
 ```
 
 If you do not have access to GPUs, you can install the CPU version instead:
 ```
-$ pip3 install tensorflow
+$ pip3 install 'tensorflow>=1.13.0,<2.0.0' --force-reinstall
 ```
 
 Install fastText for python:
 ```
-$ git clone https://github.com/facebookresearch/fastText.git
-$ pip3 install fastText/
+$ pip3 install fasttext
 ```
 
 Install NCR by simply cloning this repository:
