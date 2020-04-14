@@ -1,1 +1,1 @@
-http://127.0.0.1:5000/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
+http://127.0.0.1:5000/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HP

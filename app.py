@@ -19,9 +19,9 @@ Start with at least one hard-coded model, in future versions of this API, newer 
 can be automatically added to the NCR_MODELS data structure. For now, simply modify the following
 lines to select which trained models are to be available for use.
 """
-NCR_MODELS['HPO'] = {}
-NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('model_params/0', 'model_params/pmc_model_new.bin')
-NCR_MODELS['HPO']['threshold'] = 0.6
+NCR_MODELS['HP'] = {}
+NCR_MODELS['HP']['object'] = ncrmodel.NCR.loadfromfile('model_params/0', 'model_params/pmc_model_new.bin')
+NCR_MODELS['HP']['threshold'] = 0.6
 
 NCR_MODELS['MONDO'] = {}
 NCR_MODELS['MONDO']['object'] = ncrmodel.NCR.loadfromfile('model_params/1', 'model_params/pmc_model_new.bin')
@@ -95,7 +95,7 @@ Returns a list of concept classes from the ontology that best match the input te
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
-    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer", "model":"HPO"}' http://ncr.ccm.sickkids.ca/curr/match/
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer", "model":"HP"}' http://ncr.ccm.sickkids.ca/curr/match/
 """
 @app.route('/match/', methods=['POST'])
 def match_post():
@@ -264,7 +264,7 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
-    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The patient was diagnosed with both cardiac disease and renal cancer.", "model": "HPO"}' http://ncr.ccm.sickkids.ca/curr/annotate/
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The patient was diagnosed with both cardiac disease and renal cancer.", "model": "HP"}' http://ncr.ccm.sickkids.ca/curr/annotate/
 
 """
 @app.route('/annotate/', methods=['POST'])

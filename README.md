@@ -28,7 +28,7 @@ Install NCR by simply cloning this repository:
 $ git clone https://github.com/ccmbioinfo/NeuralCR.git
 ```
 
-To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HPO, the Human Phenotype Ontology](https://hpo.jax.org/app/) (release of 2019-06-03):
+To run NCR you need a trained NCR model. You can train the model on your own custom ontology as explained [here](#training). Alternatively, you can download a pre-trained NCR model from [here](https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz), which is pre-trained on [HP, the Human Phenotype Ontology](https://hpo.jax.org/app/) (release of 2019-06-03):
 ```
 $ wget https://ncr.ccm.sickkids.ca/params/ncr_hpo_params.tar.gz
 $ tar -xzvf ncr_hpo_params.tar.gz
@@ -145,7 +145,7 @@ HP:0010786 Urinary tract neoplasm 0.00049688865
 HP:0000077 Abnormality of the kidney 0.0003460226
 ```
 ## Online Web App and API
-A web app is available for NCR trained on HPO:
+A web app is available for NCR trained on HP:
 
 https://ncr.ccm.sickkids.ca/curr/
 
@@ -172,7 +172,7 @@ docker run --rm -v /PATH/TO/model_params:/opt/ncr/model_params:ro -p 127.0.0.1:5
 Test it with a sample input:
 
 ```bash
-curl http://127.0.0.1:5000/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HPO
+curl http://127.0.0.1:5000/annotate/?text=The+patient+was+diagnosed+with+both+cardiac+disease+and+renal+cancer.&model=HP
 ```
 
 
