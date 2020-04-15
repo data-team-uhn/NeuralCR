@@ -145,84 +145,84 @@ Content-Type: application/json
 {
   "matches": [
     {
-      "hp_id": "HP:0012777", 
+      "hp_id": "HP:0012777",
       "names": [
         "Retinal neoplasm"
-      ], 
+      ],
       "score": "0.708877"
-    }, 
+    },
     {
-      "hp_id": "HP:0100012", 
+      "hp_id": "HP:0100012",
       "names": [
-        "Neoplasm of the eye", 
+        "Neoplasm of the eye",
         "Neoplasia of the eye"
-      ], 
+      ],
       "score": "0.161902"
-    }, 
+    },
     {
-      "hp_id": "HP:0100006", 
+      "hp_id": "HP:0100006",
       "names": [
-        "Neoplasm of the central nervous system", 
-        "Neoplasia of the central nervous system", 
+        "Neoplasm of the central nervous system",
+        "Neoplasia of the central nervous system",
         "Tumors of the central nervous system"
-      ], 
+      ],
       "score": "0.0105245"
-    }, 
+    },
     {
-      "hp_id": "HP:0007716", 
+      "hp_id": "HP:0007716",
       "names": [
-        "Intraocular melanoma", 
+        "Intraocular melanoma",
         "Uveal melanoma"
-      ], 
+      ],
       "score": "0.00986601"
-    }, 
+    },
     {
-      "hp_id": "HP:0000479", 
+      "hp_id": "HP:0000479",
       "names": [
-        "Abnormality of the retina", 
-        "Abnormal retina", 
-        "Anomaly of the retina", 
+        "Abnormality of the retina",
+        "Abnormal retina",
+        "Anomaly of the retina",
         "Retinal disease"
-      ], 
+      ],
       "score": "0.00977207"
-    }, 
+    },
     {
-      "hp_id": "HP:0004375", 
+      "hp_id": "HP:0004375",
       "names": [
-        "Neoplasm of the nervous system", 
-        "Neoplasia of the nervous system", 
+        "Neoplasm of the nervous system",
+        "Neoplasia of the nervous system",
         "Tumor of the nervous system"
-      ], 
+      ],
       "score": "0.00862639"
-    }, 
+    },
     {
-      "hp_id": "HP:0009919", 
+      "hp_id": "HP:0009919",
       "names": [
         "Retinoblastoma"
-      ], 
+      ],
       "score": "0.00727"
-    }, 
+    },
     {
-      "hp_id": "HP:0030692", 
+      "hp_id": "HP:0030692",
       "names": [
-        "Brain neoplasm", 
-        "Brain tumor", 
+        "Brain neoplasm",
+        "Brain tumor",
         "Brain tumour"
-      ], 
+      ],
       "score": "0.00584657"
-    }, 
+    },
     {
-      "hp_id": "HP:0100836", 
+      "hp_id": "HP:0100836",
       "names": [
         "Malignant neoplasm of the central nervous system"
-      ], 
+      ],
       "score": "0.0049508"
-    }, 
+    },
     {
-      "hp_id": "HP:0001098", 
+      "hp_id": "HP:0001098",
       "names": [
         "Abnormality of the fundus"
-      ], 
+      ],
       "score": "0.00389818"
     }
   ]
@@ -315,31 +315,31 @@ Content-Type: application/json
 {
   "matches": [
     {
-      "end": 52, 
-      "hp_id": "HP:0001627", 
+      "end": 52,
+      "hp_id": "HP:0001627",
       "names": [
-        "Abnormal heart morphology", 
-        "Abnormality of cardiac morphology", 
-        "Abnormality of the heart", 
-        "Cardiac abnormality", 
-        "Cardiac anomalies", 
-        "Congenital heart defect", 
+        "Abnormal heart morphology",
+        "Abnormality of cardiac morphology",
+        "Abnormality of the heart",
+        "Cardiac abnormality",
+        "Cardiac anomalies",
+        "Congenital heart defect",
         "Congenital heart defects"
-      ], 
-      "score": "0.696756", 
+      ],
+      "score": "0.696756",
       "start": 37
-    }, 
+    },
     {
-      "end": 69, 
-      "hp_id": "HP:0009726", 
+      "end": 69,
+      "hp_id": "HP:0009726",
       "names": [
-        "Renal neoplasm", 
-        "Kidney cancer", 
-        "Neoplasia of the kidneys", 
-        "Renal neoplasia", 
+        "Renal neoplasm",
+        "Kidney cancer",
+        "Neoplasia of the kidneys",
+        "Renal neoplasia",
         "Renal tumors"
-      ], 
-      "score": "0.832163", 
+      ],
+      "score": "0.832163",
       "start": 45
     }
   ]
@@ -367,7 +367,7 @@ def match(model, text):
     res = []
     for x in matches:
         tmp = OrderedDict([('hp_id',x[0]),
-                ('names',model.ont.names[x[0]]), 
+                ('names',model.ont.names[x[0]]),
                 ('score',str(x[1]))])
 
         res.append(tmp)
@@ -380,7 +380,7 @@ def annotate(model, threshold, text):
         tmp = OrderedDict([('start',x[0]),
                 ('end',x[1]),
                 ('hp_id',x[2]),
-                ('names',model.ont.names[x[2]]), 
+                ('names',model.ont.names[x[2]]),
                 ('score',str(x[3]))])
         res.append(tmp)
     return {"matches":res}
