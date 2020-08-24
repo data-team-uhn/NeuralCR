@@ -5,6 +5,7 @@ from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
 import os
 from collections import OrderedDict
+from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
@@ -275,13 +276,25 @@ def annotate_post():
         if len(list(NCR_MODELS.keys())) == 1:
             fallback_key = list(NCR_MODELS.keys())[0]
             res = annotate(NCR_MODELS[fallback_key]['object'], NCR_MODELS[fallback_key]['threshold'], request.json['text'])
-            return jsonify(res)
+            return jsonify(prefix_model_path(res, fallback_key))
         #Multiple models are available, but none specified
         abort(400)
-    if request.json['model'] not in NCR_MODELS:
-        abort(400)
-    res = annotate(NCR_MODELS[request.json['model']]['object'], NCR_MODELS[request.json['model']]['threshold'], request.json['text'])
-    return jsonify(res)
+    if type(request.json['model']) == str:
+        if request.json['model'] not in NCR_MODELS:
+            abort(400)
+        res = annotate(NCR_MODELS[request.json['model']]['object'], NCR_MODELS[request.json['model']]['threshold'], request.json['text'])
+        return jsonify(prefix_model_path(res, request.json['model']))
+    elif type(request.json['model']) == list:
+        matches = []
+        for model in request.json['model']:
+            if model not in NCR_MODELS:
+                abort(400)
+            res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.json['text'])
+            for match in res['matches']:
+                #Prefix the 'hp_id' associated value with its vocabulary path
+                match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+                matches.append(match)
+        return jsonify({'matches': matches})
 """
 @api {get} /annotate/ GET Method
 @apiName GetAnnotate
@@ -349,15 +362,24 @@ def annotate_get():
         if len(list(NCR_MODELS.keys())) == 1:
             fallback_key = list(NCR_MODELS.keys())[0]
             res = annotate(NCR_MODELS[fallback_key]['object'], NCR_MODELS[fallback_key]['threshold'], request.args['text'])
-            return jsonify(res)
+            return jsonify(prefix_model_path(res, fallback_key))
         #Multiple models are available, but none specified
         abort(400)
     if request.args['model'] not in NCR_MODELS:
         abort(400)
     if not 'text' in request.args:
         abort(400)
-    res = annotate(NCR_MODELS[request.args['model']]['object'], NCR_MODELS[request.args['model']]['threshold'], request.args['text'])
-    return jsonify(res)
+    model_list = parse_qs(request.query_string.decode()).get('model', None)
+    matches = []
+    for model in model_list:
+        if model not in NCR_MODELS:
+            abort(400)
+        res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.args['text'])
+        for match in res['matches']:
+            #Prefix the 'hp_id' associated value with its vocabulary path
+            match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+            matches.append(match)
+    return jsonify({'matches': matches})
 
 def match(model, text):
     matches = model.get_match([text], 10)[0]
@@ -382,6 +404,15 @@ def annotate(model, threshold, text):
         res.append(tmp)
     return {"matches":res}
 
+def prefix_model_path(ncroutput, model_name):
+    new_matches = []
+    for match in ncroutput['matches']:
+        new_match = match
+        new_match['hp_id'] = "/Vocabularies/{}/".format(model_name) + new_match['hp_id']
+        new_matches.append(new_match)
+    res = ncroutput
+    res['matches'] = new_matches
+    return res
 
 if __name__ == '__main__':
     print("Model loaded")
