@@ -109,6 +109,7 @@ Returns a list of concept classes from the ontology that best match the input te
 
 @apiExample {curl} Example usage:
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer", "model":"HPO"}' http://ncr.ccm.sickkids.ca/curr/match/
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer"}' http://ncr.ccm.sickkids.ca/curr/match/
 """
 @app.route('/match/', methods=['POST'])
 def match_post():
