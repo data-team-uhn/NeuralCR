@@ -4,11 +4,24 @@ import json
 from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
 import os
+import argparse
 from collections import OrderedDict
 from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
+
+cli_arg_parser = argparse.ArgumentParser()
+cli_arg_parser.add_argument("--allow_model_delete",
+    help="Allows NCR models to be deleted via HTTP DELETE method",
+    action="store_true"
+    )
+cli_arg_parser.add_argument("--always_prefix_model_path",
+    help="Always prefix the model path to the annotated results, even \
+    if multiple trained models are not specified",
+    action="store_true")
+
+CLI_ARGS = cli_arg_parser.parse_args()
 
 app = Flask(__name__)
 
@@ -70,6 +83,8 @@ def ls_models():
 
 @app.route('/models/<selected_model>', methods=['DELETE'])
 def delete_model(selected_model):
+    if not CLI_ARGS.allow_model_delete:
+        abort(400)
     if selected_model not in NCR_MODELS:
         abort(400)
     del NCR_MODELS[selected_model]
@@ -291,8 +306,9 @@ def annotate_post():
                 abort(400)
             res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.json['text'])
             for match in res['matches']:
-                #Prefix the 'hp_id' associated value with its vocabulary path
-                match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+                if CLI_ARGS.always_prefix_model_path:
+                    #Prefix the 'hp_id' associated value with its vocabulary path
+                    match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
                 matches.append(match)
         return jsonify({'matches': matches})
 """
@@ -376,8 +392,9 @@ def annotate_get():
             abort(400)
         res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.args['text'])
         for match in res['matches']:
-            #Prefix the 'hp_id' associated value with its vocabulary path
-            match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+            if CLI_ARGS.always_prefix_model_path:
+                #Prefix the 'hp_id' associated value with its vocabulary path
+                match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
             matches.append(match)
     return jsonify({'matches': matches})
 
@@ -405,6 +422,8 @@ def annotate(model, threshold, text):
     return {"matches":res}
 
 def prefix_model_path(ncroutput, model_name):
+    if not CLI_ARGS.always_prefix_model_path:
+        return ncroutput
     new_matches = []
     for match in ncroutput['matches']:
         new_match = match
