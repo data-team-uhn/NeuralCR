@@ -278,6 +278,7 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 
 @apiExample {curl} Example usage:
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The paitient was diagnosed with both cardiac disease and renal cancer.", "model": "HPO"}' http://ncr.ccm.sickkids.ca/curr/annotate/
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The paitient was diagnosed with both cardiac disease and renal cancer."}' http://ncr.ccm.sickkids.ca/curr/annotate/
 
 """
 @app.route('/annotate/', methods=['POST'])
