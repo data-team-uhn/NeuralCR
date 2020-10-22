@@ -34,7 +34,7 @@ can be automatically added to the NCR_MODELS data structure. For now, simply mod
 lines to select which trained models are to be available for use.
 """
 NCR_MODELS['HPO'] = {}
-NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('model_params', 'model_params/pmc_model_new.bin')
+NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
 NCR_MODELS['HPO']['threshold'] = 0.6
 
 
