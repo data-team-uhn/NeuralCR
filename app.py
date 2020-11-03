@@ -1,25 +1,46 @@
 #!flask/bin/python
 import json
+
 from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
 import os
+import argparse
 from collections import OrderedDict
+from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
 
+cli_arg_parser = argparse.ArgumentParser()
+cli_arg_parser.add_argument("--allow_model_delete",
+    help="Allows NCR models to be deleted via HTTP DELETE method",
+    action="store_true"
+    )
+cli_arg_parser.add_argument("--always_prefix_model_path",
+    help="Always prefix the model path to the annotated results, even \
+    if multiple trained models are not specified",
+    action="store_true")
+
+CLI_ARGS = cli_arg_parser.parse_args()
+
 app = Flask(__name__)
 
-#'''
-model = ncrmodel.NCRModel.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
-threshold = 0.6
-#'''
+#Stored in a form of {"object": model object, "threshold": threshold value}
+NCR_MODELS = {}
+
+"""
+Start with at least one hard-coded model, in future versions of this API, newer trained models
+can be automatically added to the NCR_MODELS data structure. For now, simply modify the following
+lines to select which trained models are to be available for use.
+"""
+NCR_MODELS['HPO'] = {}
+NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
+NCR_MODELS['HPO']['threshold'] = 0.6
 
 
 @app.route('/', methods=['POST'])
 def main_page():
     text = request.form['text']
-#    matches = textAnt.process_text(text, 0.6, True)
     matches = model.annotate_text(text, threshold)
     matches = sorted(matches, key=lambda x: x[0])
     tokens = []
@@ -49,6 +70,27 @@ def dated_url_for(endpoint, **values):
     return url_for(endpoint, **values)
 
 
+@app.route('/models/', methods=['GET'])
+def ls_models():
+    new_mapping = {}
+    for k in NCR_MODELS.keys():
+        new_mapping[k] = {}
+        for param in NCR_MODELS[k].keys():
+            if param == 'object':
+                continue #Can't serialize this to JSON
+            new_mapping[k][param] = NCR_MODELS[k][param]
+    return jsonify(new_mapping)
+
+@app.route('/models/<selected_model>', methods=['DELETE'])
+def delete_model(selected_model):
+    if not CLI_ARGS.allow_model_delete:
+        abort(400)
+    if selected_model not in NCR_MODELS:
+        abort(400)
+    del NCR_MODELS[selected_model]
+    return jsonify({'status': 'success'})
+
+
 """
 @api {post} /match/ POST Method
 @apiName PostMatch
@@ -66,13 +108,26 @@ Returns a list of concept classes from the ontology that best match the input te
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer", "model":"HPO"}' http://ncr.ccm.sickkids.ca/curr/match/
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"Retina cancer"}' http://ncr.ccm.sickkids.ca/curr/match/
 """
 @app.route('/match/', methods=['POST'])
 def match_post():
-    if not request.json or not 'text' in request.json:
+    if not request.json:
         abort(400)
-    res = match(request.json['text'])
+    if not 'text' in request.json:
+        abort(400)
+    if not 'model' in request.json:
+        #Maintain backwards compatibility
+        if len(list(NCR_MODELS.keys())) == 1:
+            fallback_key = list(NCR_MODELS.keys())[0]
+            res = match(NCR_MODELS[fallback_key]['object'], request.json['text'])
+            return jsonify(res)
+        #Multiple models are available, but none specified
+        abort(400)
+    if request.json['model'] not in NCR_MODELS:
+        abort(400)
+    res = match(NCR_MODELS[request.json['model']]['object'], request.json['text'])
     return jsonify(res)
 
 """
@@ -189,9 +244,19 @@ Content-Type: application/json
 """
 @app.route('/match/', methods=['GET'])
 def match_get():
+    if not 'model' in request.args:
+        #Maintain backwards compatibility
+        if len(list(NCR_MODELS.keys())) == 1:
+            fallback_key = list(NCR_MODELS.keys())[0]
+            res = match(NCR_MODELS[fallback_key]['object'], request.args['text'])
+            return jsonify(res)
+        #Multiple models are available, but none specified
+        abort(400)
+    if request.args['model'] not in NCR_MODELS:
+        abort(400)
     if not 'text' in request.args:
         abort(400)
-    res = match(request.args['text'])
+    res = match(NCR_MODELS[request.args['model']]['object'], request.args['text'])
     return jsonify(res)
 
 """
@@ -213,15 +278,41 @@ Annotates an input text with concepts from the ontology. Returns the clauses tha
 @apiSuccess {Double} matches.score Matching score (a probability between 0 and 1)
 
 @apiExample {curl} Example usage:
+    curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The paitient was diagnosed with both cardiac disease and renal cancer.", "model": "HPO"}' http://ncr.ccm.sickkids.ca/curr/annotate/
     curl -i -H "Content-Type: application/json" -X POST -d '{"text":"The paitient was diagnosed with both cardiac disease and renal cancer."}' http://ncr.ccm.sickkids.ca/curr/annotate/
 
 """
 @app.route('/annotate/', methods=['POST'])
 def annotate_post():
-    if not request.json or not 'text' in request.json:
+    if not request.json:
         abort(400)
-    res = annotate(request.json['text'])
-    return jsonify(res)
+    if not 'text' in request.json:
+        abort(400)
+    if not 'model' in request.json:
+        #Maintain backwards compatibility
+        if len(list(NCR_MODELS.keys())) == 1:
+            fallback_key = list(NCR_MODELS.keys())[0]
+            res = annotate(NCR_MODELS[fallback_key]['object'], NCR_MODELS[fallback_key]['threshold'], request.json['text'])
+            return jsonify(prefix_model_path(res, fallback_key))
+        #Multiple models are available, but none specified
+        abort(400)
+    if type(request.json['model']) == str:
+        if request.json['model'] not in NCR_MODELS:
+            abort(400)
+        res = annotate(NCR_MODELS[request.json['model']]['object'], NCR_MODELS[request.json['model']]['threshold'], request.json['text'])
+        return jsonify(prefix_model_path(res, request.json['model']))
+    elif type(request.json['model']) == list:
+        matches = []
+        for model in request.json['model']:
+            if model not in NCR_MODELS:
+                abort(400)
+            res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.json['text'])
+            for match in res['matches']:
+                if CLI_ARGS.always_prefix_model_path:
+                    #Prefix the 'hp_id' associated value with its vocabulary path
+                    match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+                matches.append(match)
+        return jsonify({'matches': matches})
 """
 @api {get} /annotate/ GET Method
 @apiName GetAnnotate
@@ -284,12 +375,32 @@ Content-Type: application/json
 """
 @app.route('/annotate/', methods=['GET'])
 def annotate_get():
+    if not 'model' in request.args:
+        #Maintain backwards compatibility
+        if len(list(NCR_MODELS.keys())) == 1:
+            fallback_key = list(NCR_MODELS.keys())[0]
+            res = annotate(NCR_MODELS[fallback_key]['object'], NCR_MODELS[fallback_key]['threshold'], request.args['text'])
+            return jsonify(prefix_model_path(res, fallback_key))
+        #Multiple models are available, but none specified
+        abort(400)
+    if request.args['model'] not in NCR_MODELS:
+        abort(400)
     if not 'text' in request.args:
         abort(400)
-    res = annotate(request.args['text'])
-    return jsonify(res)
+    model_list = parse_qs(request.query_string.decode()).get('model', None)
+    matches = []
+    for model in model_list:
+        if model not in NCR_MODELS:
+            abort(400)
+        res = annotate(NCR_MODELS[model]['object'], NCR_MODELS[model]['threshold'], request.args['text'])
+        for match in res['matches']:
+            if CLI_ARGS.always_prefix_model_path:
+                #Prefix the 'hp_id' associated value with its vocabulary path
+                match['hp_id'] = "/Vocabularies/{}/".format(model) + match['hp_id']
+            matches.append(match)
+    return jsonify({'matches': matches})
 
-def match(text):
+def match(model, text):
     matches = model.get_match([text], 10)[0]
     res = []
     for x in matches:
@@ -300,9 +411,8 @@ def match(text):
         res.append(tmp)
     return {"matches":res}
 
-def annotate(text):
+def annotate(model, threshold, text):
     matches = model.annotate_text(text, threshold)
-    #matches = textAnt.process_text(text, 0.6, True)
     res = []
     for x in matches:
         tmp = OrderedDict([('start',x[0]),
@@ -313,8 +423,19 @@ def annotate(text):
         res.append(tmp)
     return {"matches":res}
 
+def prefix_model_path(ncroutput, model_name):
+    if not CLI_ARGS.always_prefix_model_path:
+        return ncroutput
+    new_matches = []
+    for match in ncroutput['matches']:
+        new_match = match
+        new_match['hp_id'] = "/Vocabularies/{}/".format(model_name) + new_match['hp_id']
+        new_matches.append(new_match)
+    res = ncroutput
+    res['matches'] = new_matches
+    return res
 
 if __name__ == '__main__':
-    print "Model loaded"
+    print("Model loaded")
     app.run()
 
