@@ -5,6 +5,7 @@ import json
 import pickle 
 import fasttext
 import re
+from collections import namedtuple
 tf.enable_eager_execution()
 
 def is_number(s):
@@ -115,6 +116,20 @@ class NCR():
   @classmethod
   def loadfromfile(cls, param_dir, word_model_file):
     ont = pickle.load(open(param_dir+'/ont.pickle',"rb" )) 
+
+    class Config(object):
+      def __init__(self, d):
+        self.__dict__ = d
+    config = Config(json.load(open(param_dir+'/config.json', 'r')))
+
+    model = cls(config, ont, word_model_file)
+    model.ensembled_ncr.load_weights(param_dir+'/ncr_weights.h5')
+    return model
+
+  @classmethod
+  def safeloadfromjson(cls, param_dir, word_model_file):
+    ont_dict = json.load(open(param_dir+'/onto.json', 'r'))
+    ont = namedtuple('Struct', ont_dict.keys())(*ont_dict.values())
 
     class Config(object):
       def __init__(self, d):
