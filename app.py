@@ -126,6 +126,7 @@ def put_model(selected_model):
 
         param_dir = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['param_dir']))
         word_model_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['word_model_file']))
+        NCR_MODELS[selected_model] = {}
         NCR_MODELS[selected_model]['object'] = ncrmodel.NCR.safeloadfromjson(param_dir, word_model_file)
         NCR_MODELS[selected_model]['threshold'] = request.json['threshold']
 
@@ -138,6 +139,7 @@ def put_model(selected_model):
 
         id_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['id_file']))
         title_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['title_file']))
+        NCR_MODELS[selected_model] = {}
         NCR_MODELS[selected_model]['object'] = classic_model.ClassicModel(id_file, title_file)
         NCR_MODELS[selected_model]['threshold'] = 1.0
 
