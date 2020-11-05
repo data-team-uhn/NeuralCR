@@ -3,6 +3,7 @@ import json
 
 from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
+from werkzeug.utils import secure_filename
 import os
 import argparse
 from collections import OrderedDict
@@ -10,10 +11,15 @@ from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
+import classic_model
 
 cli_arg_parser = argparse.ArgumentParser()
 cli_arg_parser.add_argument("--allow_model_delete",
     help="Allows NCR models to be deleted via HTTP DELETE method",
+    action="store_true"
+    )
+cli_arg_parser.add_argument("--allow_model_put",
+    help="Allows NCR models to be added based on files present on this server",
     action="store_true"
     )
 cli_arg_parser.add_argument("--always_prefix_model_path",
@@ -22,6 +28,8 @@ cli_arg_parser.add_argument("--always_prefix_model_path",
     action="store_true")
 
 CLI_ARGS = cli_arg_parser.parse_args()
+
+TRAINED_MODELS_PATH = "model_params/"
 
 app = Flask(__name__)
 
@@ -90,6 +98,50 @@ def delete_model(selected_model):
     del NCR_MODELS[selected_model]
     return jsonify({'status': 'success'})
 
+@app.route('/models/<selected_model>', methods=['PUT'])
+def put_model(selected_model):
+    if not CLI_ARGS.allow_model_put:
+        abort(400)
+    if not request.json:
+        abort(400)
+    if 'model_type' not in request.json:
+        abort(400)
+    if type(request.json['model_type']) != str:
+        abort(400)
+    if request.json['model_type'] not in ['neural', 'classic']:
+        abort(400)
+
+    if request.json['model_type'] == 'neural':
+        for arg in ['param_dir', 'word_model_file']:
+            if arg not in request.json:
+                abort(400)
+            if type(request.json[arg]) != str:
+                abort(400)
+
+        if 'threshold' not in request.json:
+            abort(400)
+
+        if type(request.json['threshold']) != float:
+            abort(400)
+
+        param_dir = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['param_dir']))
+        word_model_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['word_model_file']))
+        NCR_MODELS[selected_model]['object'] = ncrmodel.NCR.safeloadfromjson(param_dir, word_model_file)
+        NCR_MODELS[selected_model]['threshold'] = request.json['threshold']
+
+    elif request.json['model_type'] == 'classic':
+        for arg in ['id_file', 'title_file']:
+            if arg not in request.json:
+                abort(400)
+            if type(request.json[arg]) != str:
+                abort(400)
+
+        id_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['id_file']))
+        title_file = os.path.join(secure_filename(request.json['title_file']))
+        NCR_MODELS[selected_model]['object'] = classic_model.ClassicModel(id_file, title_file)
+        NCR_MODELS[selected_model]['threshold'] = 1.0
+
+    return jsonify({'status': 'success'})
 
 """
 @api {post} /match/ POST Method
