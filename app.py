@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
-import classic_model
+import basic_text_matcher
 
 cli_arg_parser = argparse.ArgumentParser()
 cli_arg_parser.add_argument("--allow_model_delete",
@@ -108,7 +108,7 @@ def put_model(selected_model):
         abort(400)
     if type(request.json['model_type']) != str:
         abort(400)
-    if request.json['model_type'] not in ['neural', 'classic']:
+    if request.json['model_type'] not in ['neural', 'basic']:
         abort(400)
 
     if request.json['model_type'] == 'neural':
@@ -130,7 +130,7 @@ def put_model(selected_model):
         NCR_MODELS[selected_model]['object'] = ncrmodel.NCR.safeloadfromjson(param_dir, word_model_file)
         NCR_MODELS[selected_model]['threshold'] = request.json['threshold']
 
-    elif request.json['model_type'] == 'classic':
+    elif request.json['model_type'] == 'basic':
         for arg in ['id_file', 'title_file']:
             if arg not in request.json:
                 abort(400)
@@ -140,7 +140,7 @@ def put_model(selected_model):
         id_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['id_file']))
         title_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['title_file']))
         NCR_MODELS[selected_model] = {}
-        NCR_MODELS[selected_model]['object'] = classic_model.ClassicModel(id_file, title_file)
+        NCR_MODELS[selected_model]['object'] = basic_text_matcher.BasicTextMatcher(id_file, title_file)
         NCR_MODELS[selected_model]['threshold'] = 1.0
 
     return jsonify({'status': 'success'})

@@ -21,7 +21,7 @@ class OntologyInterface:
     def __init__(self, names):
         self.names = names
 
-class ClassicModel:
+class BasicTextMatcher:
     def __init__(self, id_file, title_file):
         with open(id_file, 'r') as f:
             self.id_map = json.loads(f.read())
