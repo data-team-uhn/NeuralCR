@@ -3,7 +3,6 @@ import json
 
 from functools import wraps
 from flask import Flask, jsonify, redirect, request, render_template, url_for, abort
-from werkzeug.utils import secure_filename
 import os
 import argparse
 from collections import OrderedDict
@@ -11,7 +10,7 @@ from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
-import basic_text_matcher
+import ncrmodel_flask_loader
 
 cli_arg_parser = argparse.ArgumentParser()
 cli_arg_parser.add_argument("--allow_model_delete",
@@ -45,6 +44,12 @@ NCR_MODELS['HPO'] = {}
 NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
 NCR_MODELS['HPO']['threshold'] = 0.6
 
+"""
+Register model loader methods so that HTTP PUT requests to /models/<selected_model> can
+be used to instantiate a concept recognition model from local files
+"""
+MODEL_LOADERS = {}
+MODEL_LOADERS['neural'] = ncrmodel_flask_loader.loadfromrequest
 
 @app.route('/', methods=['POST'])
 def main_page():
@@ -108,40 +113,15 @@ def put_model(selected_model):
         abort(400)
     if type(request.json['model_type']) != str:
         abort(400)
-    if request.json['model_type'] not in ['neural', 'basic']:
+    if request.json['model_type'] not in MODEL_LOADERS:
         abort(400)
 
-    if request.json['model_type'] == 'neural':
-        for arg in ['param_dir', 'word_model_file']:
-            if arg not in request.json:
-                abort(400)
-            if type(request.json[arg]) != str:
-                abort(400)
-
-        if 'threshold' not in request.json:
-            abort(400)
-
-        if type(request.json['threshold']) != float:
-            abort(400)
-
-        param_dir = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['param_dir']))
-        word_model_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['word_model_file']))
-        NCR_MODELS[selected_model] = {}
-        NCR_MODELS[selected_model]['object'] = ncrmodel.NCR.safeloadfromjson(param_dir, word_model_file)
-        NCR_MODELS[selected_model]['threshold'] = request.json['threshold']
-
-    elif request.json['model_type'] == 'basic':
-        for arg in ['id_file', 'title_file']:
-            if arg not in request.json:
-                abort(400)
-            if type(request.json[arg]) != str:
-                abort(400)
-
-        id_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['id_file']))
-        title_file = os.path.join(TRAINED_MODELS_PATH, secure_filename(request.json['title_file']))
-        NCR_MODELS[selected_model] = {}
-        NCR_MODELS[selected_model]['object'] = basic_text_matcher.BasicTextMatcher(id_file, title_file)
-        NCR_MODELS[selected_model]['threshold'] = 1.0
+    model_type = request.json['model_type']
+    try:
+        NCR_MODELS[selected_model] = MODEL_LOADERS[model_type](request, TRAINED_MODELS_PATH)
+    except Exception as e:
+        print("Model loading failed because of {}".format(e))
+        abort(400)
 
     return jsonify({'status': 'success'})
 
