@@ -10,10 +10,15 @@ from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
+import ncrmodel_flask_loader
 
 cli_arg_parser = argparse.ArgumentParser()
 cli_arg_parser.add_argument("--allow_model_delete",
     help="Allows NCR models to be deleted via HTTP DELETE method",
+    action="store_true"
+    )
+cli_arg_parser.add_argument("--allow_model_put",
+    help="Allows NCR models to be added based on files present on this server",
     action="store_true"
     )
 cli_arg_parser.add_argument("--always_prefix_model_path",
@@ -22,6 +27,8 @@ cli_arg_parser.add_argument("--always_prefix_model_path",
     action="store_true")
 
 CLI_ARGS = cli_arg_parser.parse_args()
+
+TRAINED_MODELS_PATH = "model_params/"
 
 app = Flask(__name__)
 
@@ -37,6 +44,12 @@ NCR_MODELS['HPO'] = {}
 NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
 NCR_MODELS['HPO']['threshold'] = 0.6
 
+"""
+Register model loader methods so that HTTP PUT requests to /models/<selected_model> can
+be used to instantiate a concept recognition model from local files
+"""
+MODEL_LOADERS = {}
+MODEL_LOADERS['neural'] = ncrmodel_flask_loader.loadfromrequest
 
 @app.route('/', methods=['POST'])
 def main_page():
@@ -90,6 +103,27 @@ def delete_model(selected_model):
     del NCR_MODELS[selected_model]
     return jsonify({'status': 'success'})
 
+@app.route('/models/<selected_model>', methods=['PUT'])
+def put_model(selected_model):
+    if not CLI_ARGS.allow_model_put:
+        abort(400)
+    if not request.json:
+        abort(400)
+    if 'model_type' not in request.json:
+        abort(400)
+    if type(request.json['model_type']) != str:
+        abort(400)
+    if request.json['model_type'] not in MODEL_LOADERS:
+        abort(400)
+
+    model_type = request.json['model_type']
+    try:
+        NCR_MODELS[selected_model] = MODEL_LOADERS[model_type](request, TRAINED_MODELS_PATH)
+    except Exception as e:
+        print("Model loading failed because of {}".format(e))
+        abort(400)
+
+    return jsonify({'status': 'success'})
 
 """
 @api {post} /match/ POST Method
