@@ -10,7 +10,7 @@ from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 import ncrmodel
-import ncrmodel_flask_loader
+from registered_model_loaders import MODEL_LOADERS
 
 cli_arg_parser = argparse.ArgumentParser()
 cli_arg_parser.add_argument("--allow_model_delete",
@@ -43,13 +43,6 @@ lines to select which trained models are to be available for use.
 NCR_MODELS['HPO'] = {}
 NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
 NCR_MODELS['HPO']['threshold'] = 0.6
-
-"""
-Register model loader methods so that HTTP PUT requests to /models/<selected_model> can
-be used to instantiate a concept recognition model from local files
-"""
-MODEL_LOADERS = {}
-MODEL_LOADERS['neural'] = ncrmodel_flask_loader.loadfromrequest
 
 @app.route('/', methods=['POST'])
 def main_page():
