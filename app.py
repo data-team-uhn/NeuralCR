@@ -9,7 +9,7 @@ from collections import OrderedDict
 from urllib.parse import parse_qs
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
-import ncrmodel
+from registered_models import NCR_MODELS
 from registered_model_loaders import MODEL_LOADERS
 
 cli_arg_parser = argparse.ArgumentParser()
@@ -31,18 +31,6 @@ CLI_ARGS = cli_arg_parser.parse_args()
 TRAINED_MODELS_PATH = "model_params/"
 
 app = Flask(__name__)
-
-#Stored in a form of {"object": model object, "threshold": threshold value}
-NCR_MODELS = {}
-
-"""
-Start with at least one hard-coded model, in future versions of this API, newer trained models
-can be automatically added to the NCR_MODELS data structure. For now, simply modify the following
-lines to select which trained models are to be available for use.
-"""
-NCR_MODELS['HPO'] = {}
-NCR_MODELS['HPO']['object'] = ncrmodel.NCR.loadfromfile('checks', '../NeuralCR/data/model_pmc.bin')
-NCR_MODELS['HPO']['threshold'] = 0.6
 
 @app.route('/', methods=['POST'])
 def main_page():
