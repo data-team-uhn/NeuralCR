@@ -26,6 +26,9 @@ cli_arg_parser.add_argument("--always_prefix_model_path",
     if multiple trained models are not specified",
     action="store_true")
 
+cli_arg_parser.add_argument("--host", help="Interface to listen on. Defaults to 127.0.0.1.")
+cli_arg_parser.add_argument("--port", help="TCP port to listen on. Defaults to 5000.", type=int)
+
 CLI_ARGS = cli_arg_parser.parse_args()
 
 TRAINED_MODELS_PATH = "model_params/"
@@ -464,5 +467,5 @@ def prefix_model_path(ncroutput, model_name):
 
 if __name__ == '__main__':
     print("Model loaded")
-    app.run()
+    app.run(host=CLI_ARGS.host, port=CLI_ARGS.port)
 
