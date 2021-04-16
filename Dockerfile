@@ -14,4 +14,4 @@ WORKDIR /root/opt/ncr/
 COPY . ./
 
 # This is the default command executed when starting the container
-ENTRYPOINT python3 app.py
+ENTRYPOINT python3 app.py --host 0.0.0.0
