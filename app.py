@@ -467,5 +467,5 @@ def prefix_model_path(ncroutput, model_name):
 
 if __name__ == '__main__':
     print("Model loaded")
-    app.run(host=CLI_ARGS.host, port=CLI_ARGS.listen_port)
+    app.run(host=CLI_ARGS.host, port=CLI_ARGS.port)
 
